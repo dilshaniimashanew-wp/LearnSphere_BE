@@ -6,6 +6,7 @@ import { validateBody } from "../../middleware/validate.js";
 import { badRequest, forbidden, notFound } from "../../shared/errors.js";
 import { assertCanViewContent, assertOwner, assertOwnerOrAdmin, escapeRegex, isOwner, loadCourse, oid, paginate, uniqueSlug } from "../../shared/helpers.js";
 import { Enrollment, LessonProgress } from "../enrollments/enrollment.model.js";
+import { Review } from "../platform/platform.model.js";
 import { User, type UserDoc } from "../users/user.model.js";
 import { Category, Course, CourseModule, Lesson, LEVELS, type CourseDoc } from "./course.model.js";
 
@@ -39,11 +40,12 @@ const lessonBody = z
 
 /** Public-safe course shape. Lesson bodies are only included when `withContent` is set. */
 export async function courseDto(course: CourseDoc, opts: { withOutline?: boolean; withContent?: boolean } = {}) {
-  const [instructor, category, lessonAgg, students] = await Promise.all([
+  const [instructor, category, lessonAgg, students, ratingAgg] = await Promise.all([
     User.findById(course.instructorId).select("name").lean(),
     Category.findById(course.categoryId).select("name").lean(),
     Lesson.aggregate([{ $match: { courseId: course._id } }, { $group: { _id: null, count: { $sum: 1 }, minutes: { $sum: "$estimatedMinutes" } } }]),
     Enrollment.countDocuments({ courseId: course._id }),
+    Review.aggregate([{ $match: { courseId: course._id } }, { $group: { _id: null, avg: { $avg: "$rating" }, count: { $sum: 1 } } }]),
   ]);
   const dto: Record<string, unknown> = {
     id: course.id,
@@ -64,6 +66,8 @@ export async function courseDto(course: CourseDoc, opts: { withOutline?: boolean
     durationMinutes: lessonAgg[0]?.minutes ?? 0,
     lessonCount: lessonAgg[0]?.count ?? 0,
     students,
+    rating: ratingAgg[0] ? Math.round(ratingAgg[0].avg * 10) / 10 : 0,
+    reviewCount: ratingAgg[0]?.count ?? 0,
     publishedAt: course.publishedAt,
   };
   if (opts.withOutline) {
@@ -200,6 +204,33 @@ async function loadModuleOwned(moduleId: unknown, user: UserDoc) {
   assertOwner(await loadCourse(mod.courseId), user);
   return mod;
 }
+
+// ---------- Reordering (owner only) ----------
+const reorderModulesBody = z.object({ moduleIds: z.array(z.string().refine(isValidObjectId)).min(1) }).strict();
+coursesRouter.patch("/courses/:courseId/modules/reorder", authenticate, requireRole("instructor"), validateBody(reorderModulesBody), async (req, res) => {
+  const course = await loadCourse(req.params.courseId);
+  assertOwner(course, req.user!);
+  const ids: string[] = req.body.moduleIds;
+  const existing = await CourseModule.find({ courseId: course._id }).select("_id").lean();
+  // The list must be exactly this course's modules, each once.
+  if (new Set(ids).size !== ids.length || ids.length !== existing.length || !existing.every((m) => ids.includes(String(m._id)))) {
+    throw badRequest("moduleIds must list every module of this course exactly once");
+  }
+  await CourseModule.bulkWrite(ids.map((id, order) => ({ updateOne: { filter: { _id: id, courseId: course._id }, update: { $set: { order } } } })));
+  res.json({ message: "Modules reordered" });
+});
+
+/** Sets the lesson order of one module. Lessons dragged in from another module of the same course move here. */
+const reorderLessonsBody = z.object({ lessonIds: z.array(z.string().refine(isValidObjectId)).max(500) }).strict();
+coursesRouter.patch("/modules/:moduleId/lessons/reorder", authenticate, requireRole("instructor"), validateBody(reorderLessonsBody), async (req, res) => {
+  const mod = await loadModuleOwned(req.params.moduleId, req.user!);
+  const ids: string[] = req.body.lessonIds;
+  if (new Set(ids).size !== ids.length) throw badRequest("Duplicate lesson ids");
+  const found = await Lesson.countDocuments({ _id: { $in: ids }, courseId: mod.courseId });
+  if (found !== ids.length) throw badRequest("All lessons must belong to this course");
+  await Lesson.bulkWrite(ids.map((id, order) => ({ updateOne: { filter: { _id: id, courseId: mod.courseId }, update: { $set: { order, moduleId: mod._id } } } })));
+  res.json({ message: "Lessons reordered" });
+});
 
 coursesRouter.patch("/modules/:moduleId", authenticate, requireRole("instructor"), validateBody(moduleBody.partial()), async (req, res) => {
   const mod = await loadModuleOwned(req.params.moduleId, req.user!);

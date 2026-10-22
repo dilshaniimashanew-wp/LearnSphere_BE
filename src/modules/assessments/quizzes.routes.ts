@@ -37,6 +37,24 @@ const quizBody = z
   })
   .strict();
 
+const updateQuizBody = quizBody.extend({
+  questions: z
+    .array(
+      z
+        .object({
+          id: z.string().optional(), // present for an existing question, absent for a new one
+          type: z.enum(["multiple_choice", "true_false"]),
+          prompt: z.string().trim().min(3),
+          options: z.array(z.string().trim().min(1)).max(8).default([]),
+          correctIndex: z.number().int().min(0),
+          points: z.number().int().min(1).max(100).default(1),
+        })
+        .strict(),
+    )
+    .min(1)
+    .max(100),
+});
+
 const submitBody = z.object({ answers: z.array(z.object({ questionId: z.string(), optionId: z.string() }).strict()).max(200) }).strict();
 
 /** Student-safe question shape: correct answers are never included. */
@@ -71,6 +89,35 @@ quizzesRouter.post("/courses/:courseId/quizzes", requireRole("instructor"), vali
   const quiz = await Quiz.create({ ...settings, courseId: course._id, status: "published" });
   await Question.insertMany(docs.map((d) => ({ ...d, quizId: quiz._id })));
   res.status(201).json({ data: { id: quiz.id, title: quiz.title, questionCount: docs.length }, message: "Quiz created" });
+});
+
+/** Edit a quiz in place. Existing questions keep their id so past attempts stay meaningful. */
+quizzesRouter.put("/quizzes/:quizId", requireRole("instructor"), validateBody(updateQuizBody), async (req, res) => {
+  const quiz = await Quiz.findById(oid(req.params.quizId));
+  if (!quiz) throw notFound("Quiz not found");
+  assertOwner(await loadCourse(quiz.courseId), req.user!);
+  const { questions, ...settings } = req.body as z.infer<typeof updateQuizBody>;
+
+  const built = questions.map((q, order) => {
+    const texts = q.type === "true_false" ? ["True", "False"] : q.options;
+    if (texts.length < 2) throw badRequest(`Question ${order + 1} needs at least two options`);
+    if (q.correctIndex >= texts.length) throw badRequest(`Question ${order + 1} has an invalid correct answer`);
+    return { id: q.id, doc: { type: q.type, prompt: q.prompt, options: texts.map((text, i) => ({ id: letters[i], text })), correctOptionId: letters[q.correctIndex], points: q.points, order } };
+  });
+
+  const existing = await Question.find({ quizId: quiz._id }).select("_id").lean();
+  const existingIds = new Set(existing.map((q) => String(q._id)));
+  if (built.some((b) => b.id && !existingIds.has(b.id))) throw badRequest("Unknown question id");
+  const keep = new Set(built.filter((b) => b.id).map((b) => b.id!));
+
+  quiz.set(settings);
+  await quiz.save();
+  await Question.deleteMany({ quizId: quiz._id, _id: { $in: [...existingIds].filter((id) => !keep.has(id)) } });
+  for (const b of built) {
+    if (b.id) await Question.updateOne({ _id: b.id, quizId: quiz._id }, { $set: b.doc });
+    else await Question.create({ ...b.doc, quizId: quiz._id });
+  }
+  res.json({ data: { id: quiz.id, title: quiz.title, questionCount: built.length }, message: "Quiz updated" });
 });
 
 quizzesRouter.get("/courses/:courseId/quizzes", async (req, res) => {

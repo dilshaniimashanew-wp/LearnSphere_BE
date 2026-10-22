@@ -8,7 +8,12 @@ import { passwordRule } from "../auth/auth.schemas.js";
 import { hashPassword } from "../auth/auth.service.js";
 import { User, toPublicUser } from "./user.model.js";
 
-const updateProfileSchema = z.object({ name: z.string().trim().min(2).max(80) }).strict();
+// Avatars are small (client-resized) data URLs or https links. Large files belong in object storage.
+const avatarRule = z
+  .string()
+  .max(70_000)
+  .refine((v) => /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(v) || /^https:\/\/\S+$/.test(v), "Avatar must be an image");
+const updateProfileSchema = z.object({ name: z.string().trim().min(2).max(80).optional(), avatarUrl: avatarRule.nullable().optional() }).strict();
 const changePasswordSchema = z.object({ currentPassword: z.string().min(1), newPassword: passwordRule }).strict();
 
 export const usersRouter = Router();
@@ -20,7 +25,8 @@ usersRouter.get("/me", (req, res) => {
 
 usersRouter.patch("/me", validateBody(updateProfileSchema), async (req, res) => {
   const user = req.user!;
-  user.name = req.body.name;
+  if (req.body.name !== undefined) user.name = req.body.name;
+  if (req.body.avatarUrl !== undefined) user.avatarUrl = req.body.avatarUrl ?? undefined;
   await user.save();
   res.json({ data: toPublicUser(user), message: "Profile updated" });
 });
