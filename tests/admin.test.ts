@@ -40,7 +40,9 @@ describe("categories", () => {
 
     const used = await createCategory("In use");
     await createCourse(instructor.user._id, { status: "published" });
-    const cat = (await admin.agent.get(api("/admin/categories"))).body.data.find((c: { name: string; courses: number }) => c.name !== "Languages" && c.courses > 0);
+    const cat = (await admin.agent.get(api("/admin/categories"))).body.data.find(
+      (c: { name: string; courses: number }) => c.name !== "Languages" && c.courses > 0,
+    );
     expect(cat).toBeTruthy();
     expect((await admin.agent.delete(api(`/admin/categories/${cat.id}`))).status).toBe(400);
     expect((await admin.agent.delete(api(`/admin/categories/${created.body.data.id}`))).status).toBe(200);
@@ -80,7 +82,9 @@ describe("platform behaviour", () => {
     const bad = await anonymous().post(api("/auth/login")).set("Content-Type", "application/json").send("{not json");
     expect(bad.status).toBe(400);
     expect(bad.body.error.code).toBe("VALIDATION_ERROR");
-    const huge = await anonymous().post(api("/auth/login")).send({ email: "a@b.co", password: "x".repeat(200_000) });
+    const huge = await anonymous()
+      .post(api("/auth/login"))
+      .send({ email: "a@b.co", password: "x".repeat(200_000) });
     expect(huge.status).toBe(413);
   });
 

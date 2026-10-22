@@ -13,15 +13,15 @@ Express + TypeScript + MongoDB (Mongoose) REST API for the LearnSphere LMS. Base
 
 ## Demo accounts (created by `seed:demo`, for local/demo use only)
 
-| Role | Email | Password |
-|---|---|---|
-| Admin | admin@learnsphere.test | Admin@12345 |
-| Instructor | amara@learnsphere.test | Instructor@12345 |
-| Instructor | kasun@learnsphere.test | Instructor@12345 |
-| Student | nimali@learnsphere.test (completed a course, has a certificate) | Student@12345 |
-| Student | chamod@learnsphere.test (submitted work awaiting grading) | Student@12345 |
-| Student | tharushi@learnsphere.test (graded assignment) | Student@12345 |
-| Student | dilan@learnsphere.test (no activity) | Student@12345 |
+| Role       | Email                                                           | Password         |
+| ---------- | --------------------------------------------------------------- | ---------------- |
+| Admin      | admin@learnsphere.test                                          | Admin@12345      |
+| Instructor | amara@learnsphere.test                                          | Instructor@12345 |
+| Instructor | kasun@learnsphere.test                                          | Instructor@12345 |
+| Student    | nimali@learnsphere.test (completed a course, has a certificate) | Student@12345    |
+| Student    | chamod@learnsphere.test (submitted work awaiting grading)       | Student@12345    |
+| Student    | tharushi@learnsphere.test (graded assignment)                   | Student@12345    |
+| Student    | dilan@learnsphere.test (no activity)                            | Student@12345    |
 
 ## Workflow
 

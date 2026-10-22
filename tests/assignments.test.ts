@@ -25,7 +25,9 @@ beforeAll(async () => {
 
 describe("creating assignments", () => {
   it("notifies every enrolled student", async () => {
-    const res = await owner.agent.post(api(`/courses/${courseId}/assignments`)).send({ title: "Essay", instructions: "Write an essay.", dueAt: new Date(Date.now() + 86_400_000).toISOString(), maxPoints: 50 });
+    const res = await owner.agent
+      .post(api(`/courses/${courseId}/assignments`))
+      .send({ title: "Essay", instructions: "Write an essay.", dueAt: new Date(Date.now() + 86_400_000).toISOString(), maxPoints: 50 });
     expect(res.status).toBe(201);
     expect(await Notification.countDocuments({ recipientId: student.user._id, type: "new_assignment" })).toBe(1);
   });

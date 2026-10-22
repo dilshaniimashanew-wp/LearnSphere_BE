@@ -62,7 +62,9 @@ coursesRouter.get("/courses/:courseId/lessons", ...protect(), async (req, res) =
   await assertCanViewContent(course, req.user!);
   const dto = await presentCourse(course, { withOutline: true, withContent: true });
   const completed =
-    req.user!.role === "student" ? (await LessonProgress.find({ studentId: req.user!._id, courseId: course._id }).select("lessonId").lean()).map((p) => String(p.lessonId)) : [];
+    req.user!.role === "student"
+      ? (await LessonProgress.find({ studentId: req.user!._id, courseId: course._id }).select("lessonId").lean()).map((p) => String(p.lessonId))
+      : [];
   res.json({ data: { ...dto, completedLessonIds: completed } });
 });
 

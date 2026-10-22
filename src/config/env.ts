@@ -12,6 +12,8 @@ const schema = z.object({
   API_RATE_LIMIT: z.coerce.number().int().positive().default(600),
   // Number of reverse proxies in front of the API (so the real client IP is used for rate limits)
   TRUST_PROXY: z.coerce.number().int().min(0).default(0),
+  // Serve Swagger UI at /api/v1/docs (off by default in production)
+  ENABLE_DOCS: z.enum(["true", "false"]).optional(),
   AUTH_RATE_LIMIT: z.coerce.number().int().positive().default(30),
   // Optional comma-separated DNS servers, for networks whose DNS cannot resolve mongodb+srv records
   DNS_SERVERS: z.string().optional(),

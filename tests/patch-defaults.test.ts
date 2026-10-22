@@ -22,7 +22,9 @@ beforeAll(async () => {
   courseId = course.body.data.id;
   moduleId = (await owner.agent.post(api(`/courses/${courseId}/modules`)).send({ title: "Module", description: "Keep this" })).body.data.id;
   lessonId = (
-    await owner.agent.post(api(`/modules/${moduleId}/lessons`)).send({ title: "Lesson", content: "Precious content", estimatedMinutes: 42, isRequired: false, type: "text" })
+    await owner.agent
+      .post(api(`/modules/${moduleId}/lessons`))
+      .send({ title: "Lesson", content: "Precious content", estimatedMinutes: 42, isRequired: false, type: "text" })
   ).body.data.id;
 });
 

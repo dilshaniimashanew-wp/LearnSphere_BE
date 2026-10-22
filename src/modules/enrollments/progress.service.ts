@@ -20,9 +20,11 @@ export async function courseProgress(studentId: Types.ObjectId, courseId: Types.
   const doneIds = new Set(done.map((d) => String(d.lessonId)));
   const requiredDone = lessons.filter((l) => doneIds.has(String(l._id))).length;
   const passedQuizIds = new Set(
-    (await QuizAttempt.find({ studentId, courseId, passed: true, quizId: { $in: quizzes.map((q) => q._id) } }).select("quizId").lean()).map((a) =>
-      String(a.quizId),
-    ),
+    (
+      await QuizAttempt.find({ studentId, courseId, passed: true, quizId: { $in: quizzes.map((q) => q._id) } })
+        .select("quizId")
+        .lean()
+    ).map((a) => String(a.quizId)),
   );
   const percent = lessons.length ? Math.round((requiredDone / lessons.length) * 100) : 0;
   const complete = lessons.length > 0 && requiredDone === lessons.length && passedQuizIds.size === quizzes.length;
@@ -48,7 +50,13 @@ export async function evaluateCompletion(studentId: Types.ObjectId, courseId: Ty
   if (flipped) {
     const course = await Course.findById(courseId).select("title").lean();
     await Certificate.updateOne({ studentId, courseId }, { $setOnInsert: { certificateCode: newCertificateCode(), issuedAt: new Date() } }, { upsert: true });
-    await notify(studentId, "course_completed", "Course completed", `You completed ${course?.title ?? "your course"}. Your certificate is ready.`, "/student/certificates");
+    await notify(
+      studentId,
+      "course_completed",
+      "Course completed",
+      `You completed ${course?.title ?? "your course"}. Your certificate is ready.`,
+      "/student/certificates",
+    );
   }
   return progress;
 }

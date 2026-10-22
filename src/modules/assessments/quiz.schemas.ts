@@ -16,13 +16,17 @@ const settings = {
   maxAttempts: z.number().int().min(1).max(20).default(3),
 };
 
-export const createQuizBody = z
-  .object({ ...settings, questions: z.array(z.object(questionFields).strict()).min(1).max(100) })
-  .strict();
+export const createQuizBody = z.object({ ...settings, questions: z.array(z.object(questionFields).strict()).min(1).max(100) }).strict();
 
 // When editing, an existing question carries its id; a new one has none.
 export const updateQuizBody = z
-  .object({ ...settings, questions: z.array(z.object({ id: z.string().optional(), ...questionFields }).strict()).min(1).max(100) })
+  .object({
+    ...settings,
+    questions: z
+      .array(z.object({ id: z.string().optional(), ...questionFields }).strict())
+      .min(1)
+      .max(100),
+  })
   .strict();
 
 export const submitAttemptBody = z.object({ answers: z.array(z.object({ questionId: z.string(), optionId: z.string() }).strict()).max(200) }).strict();

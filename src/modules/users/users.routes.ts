@@ -14,8 +14,8 @@ const avatarRule = z
   .string()
   .max(70_000)
   .refine((v) => /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(v) || /^https:\/\/\S+$/.test(v), "Avatar must be an image");
-const updateProfileSchema = z.object({ name: z.string().trim().min(2).max(80).optional(), avatarUrl: avatarRule.nullable().optional() }).strict();
-const changePasswordSchema = z.object({ currentPassword: z.string().min(1), newPassword: passwordRule }).strict();
+export const updateProfileSchema = z.object({ name: z.string().trim().min(2).max(80).optional(), avatarUrl: avatarRule.nullable().optional() }).strict();
+export const changePasswordSchema = z.object({ currentPassword: z.string().min(1), newPassword: passwordRule }).strict();
 
 export const usersRouter = Router();
 usersRouter.use(authenticate);

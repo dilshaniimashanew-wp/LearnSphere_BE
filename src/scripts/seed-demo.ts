@@ -27,7 +27,6 @@ async function makeUser(name: string, email: string, role: "admin" | "instructor
 type LessonSeed = [title: string, minutes: number, content: string, video?: string];
 type QuestionSeed = { type: "multiple_choice" | "true_false"; prompt: string; options?: string[]; correct: number };
 
-
 // Dummy question banks so the quizzes feel real.
 const mc = (prompt: string, options: string[], correct: number): QuestionSeed => ({ type: "multiple_choice", prompt, options, correct });
 const tf = (prompt: string, isTrue: boolean): QuestionSeed => ({ type: "true_false", prompt, correct: isTrue ? 0 : 1 });
@@ -105,19 +104,45 @@ async function makeCourse(opts: {
   for (const [mi, m] of opts.modules.entries()) {
     const mod = await CourseModule.create({ courseId: course._id, title: m.title, order: mi });
     for (const [li, [title, minutes, content, videoUrl]] of m.lessons.entries()) {
-      lessons.push(await Lesson.create({ courseId: course._id, moduleId: mod._id, title, estimatedMinutes: minutes, content, videoUrl, type: videoUrl ? "video" : "text", order: li }));
+      lessons.push(
+        await Lesson.create({
+          courseId: course._id,
+          moduleId: mod._id,
+          title,
+          estimatedMinutes: minutes,
+          content,
+          videoUrl,
+          type: videoUrl ? "video" : "text",
+          order: li,
+        }),
+      );
     }
   }
   return { course, lessons };
 }
 
 async function makeQuiz(courseId: Types.ObjectId, title: string, questions: QuestionSeed[], passMark = 60) {
-  const quiz = await Quiz.create({ courseId, title, instructions: "Answer every question. Your best attempt counts.", passMark, maxAttempts: 3, timeLimitSeconds: 600 });
+  const quiz = await Quiz.create({
+    courseId,
+    title,
+    instructions: "Answer every question. Your best attempt counts.",
+    passMark,
+    maxAttempts: 3,
+    timeLimitSeconds: 600,
+  });
   const letters = "abcdefgh";
   await Question.insertMany(
     questions.map((q, order) => {
       const texts = q.type === "true_false" ? ["True", "False"] : (q.options ?? []);
-      return { quizId: quiz._id, type: q.type, prompt: q.prompt, options: texts.map((t, i) => ({ id: letters[i], text: t })), correctOptionId: letters[q.correct], points: 1, order };
+      return {
+        quizId: quiz._id,
+        type: q.type,
+        prompt: q.prompt,
+        options: texts.map((t, i) => ({ id: letters[i], text: t })),
+        correctOptionId: letters[q.correct],
+        points: 1,
+        order,
+      };
     }),
   );
   return quiz;
@@ -176,8 +201,21 @@ async function main() {
   });
   const webQuiz = await makeQuiz(web.course._id, "Routing basics quiz", routingQuestions);
   await makeQuiz(web.course._id, "Forms and validation quiz", formsQuestions, 70);
-  const webAssignment = await Assignment.create({ courseId: web.course._id, title: "Build a validated form", instructions: "Build a registration form with React Hook Form and Zod. Share a link to your code or write a short description.", dueAt: inDays(7), maxPoints: 100, allowResubmission: true });
-  await Assignment.create({ courseId: web.course._id, title: "Deploy your app", instructions: "Deploy a small Next.js app and submit the live URL.", dueAt: inDays(14), maxPoints: 50 });
+  const webAssignment = await Assignment.create({
+    courseId: web.course._id,
+    title: "Build a validated form",
+    instructions: "Build a registration form with React Hook Form and Zod. Share a link to your code or write a short description.",
+    dueAt: inDays(7),
+    maxPoints: 100,
+    allowResubmission: true,
+  });
+  await Assignment.create({
+    courseId: web.course._id,
+    title: "Deploy your app",
+    instructions: "Deploy a small Next.js app and submit the live URL.",
+    dueAt: inDays(14),
+    maxPoints: 50,
+  });
 
   const api = await makeCourse({
     instructorId: kasun._id,
@@ -190,12 +228,24 @@ async function main() {
     objectives: ["Model data in MongoDB", "Secure endpoints", "Write API tests"],
     prerequisites: ["JavaScript fundamentals"],
     modules: [
-      { title: "Express fundamentals", lessons: [["Routing & middleware", 20, "Routers, middleware and request validation."], ["Error handling", 15, "Central error handling and consistent JSON errors."]] },
+      {
+        title: "Express fundamentals",
+        lessons: [
+          ["Routing & middleware", 20, "Routers, middleware and request validation."],
+          ["Error handling", 15, "Central error handling and consistent JSON errors."],
+        ],
+      },
       { title: "MongoDB", lessons: [["Schema design", 25, "Embedding versus referencing and indexes."]] },
     ],
   });
   await makeQuiz(api.course._id, "Express basics quiz", expressQuestions);
-  await Assignment.create({ courseId: api.course._id, title: "Design a schema", instructions: "Design Mongoose schemas for a blog and explain your index choices.", dueAt: inDays(10), maxPoints: 100 });
+  await Assignment.create({
+    courseId: api.course._id,
+    title: "Design a schema",
+    instructions: "Design Mongoose schemas for a blog and explain your index choices.",
+    dueAt: inDays(10),
+    maxPoints: 100,
+  });
 
   const py = await makeCourse({
     instructorId: kasun._id,
@@ -206,7 +256,15 @@ async function main() {
     level: "beginner",
     status: "published",
     objectives: ["Use pandas", "Visualise data", "Tell a story with data"],
-    modules: [{ title: "Foundations", lessons: [["Intro to pandas", 20, "DataFrames, Series and reading CSV files."], ["Cleaning data", 25, "Missing values, duplicates and type conversion."]] }],
+    modules: [
+      {
+        title: "Foundations",
+        lessons: [
+          ["Intro to pandas", 20, "DataFrames, Series and reading CSV files."],
+          ["Cleaning data", 25, "Missing values, duplicates and type conversion."],
+        ],
+      },
+    ],
   });
   const pyQuiz = await makeQuiz(py.course._id, "Pandas basics quiz", pandasQuestions);
 
@@ -252,15 +310,41 @@ async function main() {
 
   await Enrollment.create({ studentId: nimali._id, courseId: py.course._id });
   for (const l of py.lessons) await LessonProgress.create({ studentId: nimali._id, courseId: py.course._id, lessonId: l._id });
-  await QuizAttempt.create({ quizId: pyQuiz._id, courseId: py.course._id, studentId: nimali._id, attemptNumber: 1, status: "submitted", submittedAt: new Date(), score: 8, maxScore: 8, passed: true });
+  await QuizAttempt.create({
+    quizId: pyQuiz._id,
+    courseId: py.course._id,
+    studentId: nimali._id,
+    attemptNumber: 1,
+    status: "submitted",
+    submittedAt: new Date(),
+    score: 8,
+    maxScore: 8,
+    passed: true,
+  });
   await evaluateCompletion(nimali._id, py.course._id);
 
   // Chamod: has passed the web quiz and submitted an assignment waiting to be graded.
   await Enrollment.create({ studentId: chamod._id, courseId: web.course._id });
   await Enrollment.create({ studentId: chamod._id, courseId: api.course._id });
   await LessonProgress.create({ studentId: chamod._id, courseId: web.course._id, lessonId: web.lessons[0]._id });
-  await QuizAttempt.create({ quizId: webQuiz._id, courseId: web.course._id, studentId: chamod._id, attemptNumber: 1, status: "submitted", submittedAt: new Date(), score: 8, maxScore: 10, passed: true });
-  await Submission.create({ assignmentId: webAssignment._id, courseId: web.course._id, studentId: chamod._id, textResponse: "Form built with React Hook Form + Zod: https://github.com/example/form-demo", submittedAt: new Date() });
+  await QuizAttempt.create({
+    quizId: webQuiz._id,
+    courseId: web.course._id,
+    studentId: chamod._id,
+    attemptNumber: 1,
+    status: "submitted",
+    submittedAt: new Date(),
+    score: 8,
+    maxScore: 10,
+    passed: true,
+  });
+  await Submission.create({
+    assignmentId: webAssignment._id,
+    courseId: web.course._id,
+    studentId: chamod._id,
+    textResponse: "Form built with React Hook Form + Zod: https://github.com/example/form-demo",
+    submittedAt: new Date(),
+  });
 
   // Tharushi: already graded.
   await Enrollment.create({ studentId: tharushi._id, courseId: web.course._id });
@@ -271,15 +355,40 @@ async function main() {
     textResponse: "My validated registration form with inline errors.",
     submittedAt: new Date(Date.now() - 2 * day),
     status: "graded",
-    grade: { pointsAwarded: 86, feedback: "Great validation and clear error messages. Add keyboard focus styles next time.", gradedBy: amara._id, gradedAt: new Date() },
+    grade: {
+      pointsAwarded: 86,
+      feedback: "Great validation and clear error messages. Add keyboard focus styles next time.",
+      gradedBy: amara._id,
+      gradedAt: new Date(),
+    },
   });
 
   // ---- Announcements & reviews ----
   await Announcement.insertMany([
-    { courseId: web.course._id, authorId: amara._id, title: "Welcome to the course", body: "Welcome everyone! Start with the Getting started module, then try the Routing basics quiz. Ask questions any time." },
-    { courseId: web.course._id, authorId: amara._id, title: "Assignment tip", body: "For the validated form assignment, share a repository link or describe your approach. Resubmission is allowed until the deadline." },
-    { courseId: api.course._id, authorId: kasun._id, title: "Schema design office hour", body: "I will review schema designs live on Friday. Bring your index questions." },
-    { courseId: py.course._id, authorId: kasun._id, title: "Dataset for practice", body: "Use any public CSV dataset for the cleaning exercise. Kaggle has many small ones." },
+    {
+      courseId: web.course._id,
+      authorId: amara._id,
+      title: "Welcome to the course",
+      body: "Welcome everyone! Start with the Getting started module, then try the Routing basics quiz. Ask questions any time.",
+    },
+    {
+      courseId: web.course._id,
+      authorId: amara._id,
+      title: "Assignment tip",
+      body: "For the validated form assignment, share a repository link or describe your approach. Resubmission is allowed until the deadline.",
+    },
+    {
+      courseId: api.course._id,
+      authorId: kasun._id,
+      title: "Schema design office hour",
+      body: "I will review schema designs live on Friday. Bring your index questions.",
+    },
+    {
+      courseId: py.course._id,
+      authorId: kasun._id,
+      title: "Dataset for practice",
+      body: "Use any public CSV dataset for the cleaning exercise. Kaggle has many small ones.",
+    },
   ]);
   await Review.insertMany([
     { courseId: py.course._id, studentId: nimali._id, rating: 5, comment: "Clear explanations and practical examples. The cleaning lesson was my favourite." },
@@ -290,10 +399,34 @@ async function main() {
 
   // ---- Notifications & audit log ----
   await Notification.insertMany([
-    { recipientId: nimali._id, type: "course_completed", title: "Course completed", body: "You completed Data Analysis with Python. Your certificate is ready.", link: "/student/certificates" },
-    { recipientId: nimali._id, type: "new_assignment", title: "New assignment", body: '"Build a validated form" was added to Modern Web Development with Next.js.', link: "/student/assignments" },
-    { recipientId: tharushi._id, type: "assignment_graded", title: "Assignment graded", body: '"Build a validated form" was graded: 86/100.', link: "/student/grades" },
-    { recipientId: amara._id, type: "new_submission", title: "New submission", body: 'Chamod Ekanayake submitted "Build a validated form".', link: "/instructor/submissions" },
+    {
+      recipientId: nimali._id,
+      type: "course_completed",
+      title: "Course completed",
+      body: "You completed Data Analysis with Python. Your certificate is ready.",
+      link: "/student/certificates",
+    },
+    {
+      recipientId: nimali._id,
+      type: "new_assignment",
+      title: "New assignment",
+      body: '"Build a validated form" was added to Modern Web Development with Next.js.',
+      link: "/student/assignments",
+    },
+    {
+      recipientId: tharushi._id,
+      type: "assignment_graded",
+      title: "Assignment graded",
+      body: '"Build a validated form" was graded: 86/100.',
+      link: "/student/grades",
+    },
+    {
+      recipientId: amara._id,
+      type: "new_submission",
+      title: "New submission",
+      body: 'Chamod Ekanayake submitted "Build a validated form".',
+      link: "/instructor/submissions",
+    },
   ]);
   await AuditLog.insertMany([
     { actorId: admin._id, action: "course.approve", targetType: "course", targetId: String(web.course._id), metadata: { title: web.course.title } },

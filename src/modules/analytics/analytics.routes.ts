@@ -20,7 +20,10 @@ analyticsRouter.get("/admin/analytics", authenticate, requireRole("admin"), asyn
     Enrollment.countDocuments(),
     Enrollment.countDocuments({ status: "completed" }),
     Course.countDocuments({ status: "pending_review" }),
-    QuizAttempt.aggregate([{ $match: { status: "submitted" } }, { $group: { _id: null, attempts: { $sum: 1 }, passed: { $sum: { $cond: ["$passed", 1, 0] } } } }]),
+    QuizAttempt.aggregate([
+      { $match: { status: "submitted" } },
+      { $group: { _id: null, attempts: { $sum: 1 }, passed: { $sum: { $cond: ["$passed", 1, 0] } } } },
+    ]),
     Certificate.countDocuments(),
   ]);
   const byRole = await User.aggregate([{ $group: { _id: "$role", count: { $sum: 1 } } }]);
@@ -55,7 +58,10 @@ analyticsRouter.get("/instructor/analytics", authenticate, requireRole("instruct
   ]);
   const perCourse = await Promise.all(
     courses.map(async (c) => {
-      const [total, done] = await Promise.all([Enrollment.countDocuments({ courseId: c._id }), Enrollment.countDocuments({ courseId: c._id, status: "completed" })]);
+      const [total, done] = await Promise.all([
+        Enrollment.countDocuments({ courseId: c._id }),
+        Enrollment.countDocuments({ courseId: c._id, status: "completed" }),
+      ]);
       return { id: c.id, title: c.title, status: c.status, students: total, completion: pct(done, total) };
     }),
   );
@@ -77,19 +83,39 @@ analyticsRouter.get("/student/summary", authenticate, requireRole("student"), as
   const enrollments = await Enrollment.find({ studentId: req.user!._id });
   const courseIds = enrollments.map((e) => e.courseId);
   const [assignments, submissions, quizzes, attempts] = await Promise.all([
-    Assignment.find({ courseId: { $in: courseIds }, dueAt: { $gte: new Date() } }).sort({ dueAt: 1 }).lean(),
+    Assignment.find({ courseId: { $in: courseIds }, dueAt: { $gte: new Date() } })
+      .sort({ dueAt: 1 })
+      .lean(),
     Submission.find({ studentId: req.user!._id }).select("assignmentId").lean(),
     Quiz.find({ courseId: { $in: courseIds }, status: "published" }).lean(),
     QuizAttempt.find({ studentId: req.user!._id, passed: true }).select("quizId").lean(),
   ]);
   const submitted = new Set(submissions.map((s) => String(s.assignmentId)));
   const passed = new Set(attempts.map((a) => String(a.quizId)));
-  const courses = await Course.find({ _id: { $in: courseIds } }).select("title").lean();
+  const courses = await Course.find({ _id: { $in: courseIds } })
+    .select("title")
+    .lean();
   const titles = new Map(courses.map((c) => [String(c._id), c.title]));
 
   const upcoming = [
-    ...assignments.filter((a) => !submitted.has(String(a._id))).map((a) => ({ id: String(a._id), title: `Assignment: ${a.title}`, course: titles.get(String(a.courseId)) ?? "", due: a.dueAt, link: `/student/assignments` })),
-    ...quizzes.filter((q) => !passed.has(String(q._id))).map((q) => ({ id: String(q._id), title: `Quiz: ${q.title}`, course: titles.get(String(q.courseId)) ?? "", due: null, link: `/student/courses/${q.courseId}` })),
+    ...assignments
+      .filter((a) => !submitted.has(String(a._id)))
+      .map((a) => ({
+        id: String(a._id),
+        title: `Assignment: ${a.title}`,
+        course: titles.get(String(a.courseId)) ?? "",
+        due: a.dueAt,
+        link: `/student/assignments`,
+      })),
+    ...quizzes
+      .filter((q) => !passed.has(String(q._id)))
+      .map((q) => ({
+        id: String(q._id),
+        title: `Quiz: ${q.title}`,
+        course: titles.get(String(q.courseId)) ?? "",
+        due: null,
+        link: `/student/courses/${q.courseId}`,
+      })),
   ];
   const active = enrollments.filter((e) => e.status === "active");
   res.json({

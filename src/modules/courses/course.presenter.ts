@@ -14,11 +14,24 @@ export async function presentCourses(courses: CourseDoc[]) {
   if (courses.length === 0) return [];
   const ids = courses.map((c) => c._id);
   const [instructors, categories, lessons, enrollments, reviews] = await Promise.all([
-    User.find({ _id: { $in: courses.map((c) => c.instructorId) } }).select("name").lean(),
-    Category.find({ _id: { $in: courses.map((c) => c.categoryId) } }).select("name").lean(),
-    Lesson.aggregate<{ _id: Types.ObjectId; count: number; minutes: number }>([{ $match: { courseId: { $in: ids } } }, { $group: { _id: "$courseId", count: { $sum: 1 }, minutes: { $sum: "$estimatedMinutes" } } }]),
-    Enrollment.aggregate<{ _id: Types.ObjectId; count: number }>([{ $match: { courseId: { $in: ids } } }, { $group: { _id: "$courseId", count: { $sum: 1 } } }]),
-    Review.aggregate<{ _id: Types.ObjectId; avg: number; count: number }>([{ $match: { courseId: { $in: ids } } }, { $group: { _id: "$courseId", avg: { $avg: "$rating" }, count: { $sum: 1 } } }]),
+    User.find({ _id: { $in: courses.map((c) => c.instructorId) } })
+      .select("name")
+      .lean(),
+    Category.find({ _id: { $in: courses.map((c) => c.categoryId) } })
+      .select("name")
+      .lean(),
+    Lesson.aggregate<{ _id: Types.ObjectId; count: number; minutes: number }>([
+      { $match: { courseId: { $in: ids } } },
+      { $group: { _id: "$courseId", count: { $sum: 1 }, minutes: { $sum: "$estimatedMinutes" } } },
+    ]),
+    Enrollment.aggregate<{ _id: Types.ObjectId; count: number }>([
+      { $match: { courseId: { $in: ids } } },
+      { $group: { _id: "$courseId", count: { $sum: 1 } } },
+    ]),
+    Review.aggregate<{ _id: Types.ObjectId; avg: number; count: number }>([
+      { $match: { courseId: { $in: ids } } },
+      { $group: { _id: "$courseId", avg: { $avg: "$rating" }, count: { $sum: 1 } } },
+    ]),
   ]);
   const instructorById = groupById(instructors);
   const categoryById = groupById(categories);

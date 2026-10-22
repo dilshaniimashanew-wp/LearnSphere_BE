@@ -59,7 +59,13 @@ export const percentOf = (score: number, maxScore: number) => Math.round((score 
 export const deadlineOf = (startedAt: Date, timeLimitSeconds: number) => new Date(startedAt.getTime() + timeLimitSeconds * 1000);
 
 /** Student-safe question shape: correct answers are never included. */
-export const toPublicQuestion = (q: { _id: unknown; type: string; prompt: string; options: { id?: string | null; text?: string | null }[]; points: number }) => ({
+export const toPublicQuestion = (q: {
+  _id: unknown;
+  type: string;
+  prompt: string;
+  options: { id?: string | null; text?: string | null }[];
+  points: number;
+}) => ({
   id: String(q._id),
   type: q.type,
   prompt: q.prompt,
@@ -134,17 +140,28 @@ export async function getQuizDetail(quizId: string, user: UserDoc) {
   const course = await loadCourse(quiz.courseId);
   await assertCanViewContent(course, user);
   const privileged = user.role === "admin" || isOwner(course, user);
-  const questions = await Question.find({ quizId: quiz._id }).select(privileged ? "+correctOptionId" : "").sort({ order: 1 }).lean();
+  const questions = await Question.find({ quizId: quiz._id })
+    .select(privileged ? "+correctOptionId" : "")
+    .sort({ order: 1 })
+    .lean();
   return {
     quiz,
-    questions: questions.map((q) => ({ ...toPublicQuestion(q), ...(privileged ? { correctOptionId: (q as { correctOptionId?: string }).correctOptionId } : {}) })),
+    questions: questions.map((q) => ({
+      ...toPublicQuestion(q),
+      ...(privileged ? { correctOptionId: (q as { correctOptionId?: string }).correctOptionId } : {}),
+    })),
   };
 }
 
 // ---------- Student attempts ----------
 
 async function loadKey(quizId: Types.ObjectId) {
-  return (await Question.find({ quizId }).select("+correctOptionId").lean()) as unknown as (GradableQuestion & { type: string; prompt: string; options: { id: string; text: string }[]; order: number })[];
+  return (await Question.find({ quizId }).select("+correctOptionId").lean()) as unknown as (GradableQuestion & {
+    type: string;
+    prompt: string;
+    options: { id: string; text: string }[];
+    order: number;
+  })[];
 }
 
 /** Starts a new attempt, or resumes the one still inside its time limit. */
@@ -169,7 +186,10 @@ export async function startAttempt(quizId: string, student: UserDoc) {
     if (Date.now() <= deadlineOf(open.startedAt, quiz.timeLimitSeconds).getTime() + GRACE_SECONDS * 1000) return present(open);
     // The time ran out without a submit: close it with a score of 0 and let them start a new one if attempts remain.
     const { graded, score, maxScore } = gradeAnswers(await loadKey(quiz._id), []);
-    await QuizAttempt.updateOne({ _id: open._id, status: "in_progress" }, { status: "submitted", submittedAt: new Date(), answers: graded, score, maxScore, passed: false });
+    await QuizAttempt.updateOne(
+      { _id: open._id, status: "in_progress" },
+      { status: "submitted", submittedAt: new Date(), answers: graded, score, maxScore, passed: false },
+    );
   }
 
   const used = await QuizAttempt.countDocuments({ quizId: quiz._id, studentId: student._id });
@@ -185,7 +205,11 @@ export async function startAttempt(quizId: string, student: UserDoc) {
 export async function submitAttempt(attemptId: string, student: UserDoc, answers: AnswerInput[]) {
   // Atomic claim: only one request can move an attempt out of "in_progress", so a double
   // submit (or a retry) can never be graded twice.
-  const attempt = await QuizAttempt.findOneAndUpdate({ _id: attemptId, studentId: student._id, status: "in_progress" }, { status: "submitted", submittedAt: new Date() }, { returnDocument: "after" });
+  const attempt = await QuizAttempt.findOneAndUpdate(
+    { _id: attemptId, studentId: student._id, status: "in_progress" },
+    { status: "submitted", submittedAt: new Date() },
+    { returnDocument: "after" },
+  );
   if (!attempt) {
     if (!(await QuizAttempt.exists({ _id: attemptId, studentId: student._id }))) throw notFound("Attempt not found");
     throw conflict("This attempt was already submitted");

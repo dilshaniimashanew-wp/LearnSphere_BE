@@ -4,6 +4,8 @@ import express from "express";
 import helmet from "helmet";
 import { pinoHttp } from "pino-http";
 import mongoose from "mongoose";
+import swaggerUi from "swagger-ui-express";
+import { openApiSpec } from "./docs/openapi.js";
 import { env } from "./config/env.js";
 import { errorHandler, notFoundHandler } from "./middleware/error-handler.js";
 import { createLimiter, sameOriginOnly } from "./middleware/security.js";
@@ -23,6 +25,11 @@ export const app = express();
 
 app.set("trust proxy", env.TRUST_PROXY);
 app.use(pinoHttp({ logger, autoLogging: env.NODE_ENV !== "test" }));
+// Swagger UI needs inline scripts, so it gets its own relaxed helmet config. Everything else stays strict.
+if ((env.ENABLE_DOCS ?? (env.NODE_ENV === "production" ? "false" : "true")) === "true") {
+  app.get("/api/v1/openapi.json", helmet(), (_req, res) => void res.json(openApiSpec));
+  app.use("/api/v1/docs", helmet({ contentSecurityPolicy: false }), swaggerUi.serve, swaggerUi.setup(openApiSpec, { customSiteTitle: "LearnSphere API" }));
+}
 app.use(helmet());
 app.use(cors({ origin: [env.APP_ORIGIN], credentials: true }));
 app.use(express.json({ limit: "100kb" }));

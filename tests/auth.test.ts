@@ -24,18 +24,24 @@ describe("registration", () => {
   });
 
   it("rejects a duplicate email, ignoring case", async () => {
-    const res = await anonymous().post(api("/auth/register")).send({ ...valid, email: valid.email.toUpperCase() });
+    const res = await anonymous()
+      .post(api("/auth/register"))
+      .send({ ...valid, email: valid.email.toUpperCase() });
     expect(res.status).toBe(409);
   });
 
   it.each(["admin", "instructor-ish"])("rejects the role %s on public registration", async (role) => {
-    const res = await anonymous().post(api("/auth/register")).send({ ...valid, email: `r-${role}@test.local`, role });
+    const res = await anonymous()
+      .post(api("/auth/register"))
+      .send({ ...valid, email: `r-${role}@test.local`, role });
     expect(res.status).toBe(400);
     expect(await User.exists({ email: `r-${role}@test.local` })).toBeNull();
   });
 
   it("rejects unknown fields instead of silently accepting them", async () => {
-    const res = await anonymous().post(api("/auth/register")).send({ ...valid, email: "x@test.local", status: "suspended" });
+    const res = await anonymous()
+      .post(api("/auth/register"))
+      .send({ ...valid, email: "x@test.local", status: "suspended" });
     expect(res.status).toBe(400);
   });
 
@@ -44,7 +50,9 @@ describe("registration", () => {
     ["no uppercase", "password1"],
     ["no number", "Password"],
   ])("rejects a weak password (%s)", async (_label, password) => {
-    const res = await anonymous().post(api("/auth/register")).send({ ...valid, email: "weak@test.local", password });
+    const res = await anonymous()
+      .post(api("/auth/register"))
+      .send({ ...valid, email: "weak@test.local", password });
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe("VALIDATION_ERROR");
   });
