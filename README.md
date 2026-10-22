@@ -19,41 +19,41 @@ Interactive API documentation (Swagger UI): <http://localhost:4000/api/v1/docs>
 
 ### Environment
 
-| Variable                                     | Purpose                                                                                       |
-| -------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `MONGODB_URI`                                | MongoDB Atlas (or local) connection string. Required.                                         |
-| `SESSION_SECRET`                             | At least 32 random characters, used to sign access tokens. Required.                          |
-| `APP_ORIGIN`                                 | Origin of the web app (CORS allowlist and CSRF check). Required.                              |
-| `PORT`                                       | Default `4000`.                                                                               |
-| `DNS_SERVERS`                                | Optional, e.g. `8.8.8.8,1.1.1.1`. Fixes `querySrv ECONNREFUSED` on networks whose DNS cannot resolve `mongodb+srv`. |
-| `AUTH_RATE_LIMIT`                            | Login/register requests per IP per 15 min (default 30; raise for local testing).              |
-| `API_RATE_LIMIT`                             | All API requests per IP per 15 min (default 1500).                                            |
-| `TRUST_PROXY`                                | Number of reverse proxies in front of the API (so rate limits see the real client IP).        |
-| `ENABLE_DOCS`                                | `true`/`false`. Swagger UI is on in development and off in production by default.             |
-| `ADMIN_EMAIL`, `ADMIN_PASSWORD`              | Used only by `npm run seed:admin`.                                                            |
+| Variable                        | Purpose                                                                                                             |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `MONGODB_URI`                   | MongoDB Atlas (or local) connection string. Required.                                                               |
+| `SESSION_SECRET`                | At least 32 random characters, used to sign access tokens. Required.                                                |
+| `APP_ORIGIN`                    | Origin of the web app (CORS allowlist and CSRF check). Required.                                                    |
+| `PORT`                          | Default `4000`.                                                                                                     |
+| `DNS_SERVERS`                   | Optional, e.g. `8.8.8.8,1.1.1.1`. Fixes `querySrv ECONNREFUSED` on networks whose DNS cannot resolve `mongodb+srv`. |
+| `AUTH_RATE_LIMIT`               | Login/register requests per IP per 15 min (default 30; raise for local testing).                                    |
+| `API_RATE_LIMIT`                | All API requests per IP per 15 min (default 1500).                                                                  |
+| `TRUST_PROXY`                   | Number of reverse proxies in front of the API (so rate limits see the real client IP).                              |
+| `ENABLE_DOCS`                   | `true`/`false`. Swagger UI is on in development and off in production by default.                                   |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Used only by `npm run seed:admin`.                                                                                  |
 
 Never commit `.env`. It is in `.gitignore`.
 
 ## Scripts
 
-| Command                           | What it does                                                                      |
-| --------------------------------- | --------------------------------------------------------------------------------- |
-| `npm run dev`                     | Start with auto-reload                                                            |
-| `npm run build` / `npm start`     | Compile to `dist/` and run the compiled server                                    |
-| `npm test`                        | Run the test suite (in-memory MongoDB, no setup or secrets needed)                |
-| `npm run check`                   | Lint, formatting, type check and tests: the same checks CI runs                   |
-| `npm run lint` / `lint:fix`       | ESLint                                                                            |
-| `npm run format` / `format:check` | Prettier                                                                          |
-| `npm run seed:demo`               | Create sample data (skips if it already exists)                                   |
-| `npm run seed:demo -- --reset --yes` | **Deletes all data**, then recreates the sample data. Refuses in production.   |
-| `npm run seed:admin`              | Create one admin from `ADMIN_EMAIL` / `ADMIN_PASSWORD`                            |
+| Command                              | What it does                                                                 |
+| ------------------------------------ | ---------------------------------------------------------------------------- |
+| `npm run dev`                        | Start with auto-reload                                                       |
+| `npm run build` / `npm start`        | Compile to `dist/` and run the compiled server                               |
+| `npm test`                           | Run the test suite (in-memory MongoDB, no setup or secrets needed)           |
+| `npm run check`                      | Lint, formatting, type check and tests: the same checks CI runs              |
+| `npm run lint` / `lint:fix`          | ESLint                                                                       |
+| `npm run format` / `format:check`    | Prettier                                                                     |
+| `npm run seed:demo`                  | Create sample data (skips if it already exists)                              |
+| `npm run seed:demo -- --reset --yes` | **Deletes all data**, then recreates the sample data. Refuses in production. |
+| `npm run seed:admin`                 | Create one admin from `ADMIN_EMAIL` / `ADMIN_PASSWORD`                       |
 
 ## Demo accounts (from `seed:demo`; local/demo use only)
 
-| Role       | Email                                                        | Password           |
-| ---------- | ------------------------------------------------------------ | ------------------ |
-| Admin      | admin@learnsphere.test                                       | `Admin@12345`      |
-| Instructor | amara@learnsphere.test, kasun@learnsphere.test               | `Instructor@12345` |
+| Role       | Email                                                                                                                                               | Password           |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| Admin      | admin@learnsphere.test                                                                                                                              | `Admin@12345`      |
+| Instructor | amara@learnsphere.test, kasun@learnsphere.test                                                                                                      | `Instructor@12345` |
 | Student    | nimali@ (completed a course, has a certificate), chamod@ (work awaiting grading), tharushi@ (graded work), dilan@ (no activity) `@learnsphere.test` | `Student@12345`    |
 
 ## The learning workflow

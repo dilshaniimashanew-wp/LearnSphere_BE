@@ -4,13 +4,13 @@
 
 Each feature folder under `src/modules/` follows the same shape so a change has one obvious home:
 
-| File              | Responsibility                                                                 | Knows about HTTP? |
-| ----------------- | ------------------------------------------------------------------------------ | ----------------- |
-| `*.model.ts`      | Mongoose schema, indexes                                                       | no                |
-| `*.schemas.ts`    | Zod request validation (also used to generate the API docs)                    | no                |
-| `*.service.ts`    | Business rules and use cases; throws `AppError`                                | no                |
-| `*.routes.ts`     | Parse request, check access, call a service, shape the response                | yes               |
-| `*.presenter.ts`  | Turns documents into API shapes (courses)                                      | no                |
+| File             | Responsibility                                                  | Knows about HTTP? |
+| ---------------- | --------------------------------------------------------------- | ----------------- |
+| `*.model.ts`     | Mongoose schema, indexes                                        | no                |
+| `*.schemas.ts`   | Zod request validation (also used to generate the API docs)     | no                |
+| `*.service.ts`   | Business rules and use cases; throws `AppError`                 | no                |
+| `*.routes.ts`    | Parse request, check access, call a service, shape the response | yes               |
+| `*.presenter.ts` | Turns documents into API shapes (courses)                       | no                |
 
 Rules that matter are in services so they can be unit tested without a server, for example `gradeAnswers`, `isPassing`, `courseProgress` and `evaluateCompletion`.
 
