@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { isValidObjectId, type Types } from "mongoose";
+import { isValidObjectId, Types } from "mongoose";
 import { Course, type CourseDoc } from "../modules/courses/course.model.js";
 import { Enrollment } from "../modules/enrollments/enrollment.model.js";
 import { AuditLog, Notification } from "../modules/platform/platform.model.js";
@@ -8,8 +8,10 @@ import { forbidden, notFound } from "./errors.js";
 
 /** Route ids that are not valid ObjectIds are simply "not found". */
 export function oid(value: unknown): string {
-  if (typeof value !== "string" || !isValidObjectId(value)) throw notFound();
-  return value;
+  // Accepts a route string or an ObjectId read from another document.
+  const id = typeof value === "string" ? value : value instanceof Types.ObjectId ? value.toHexString() : "";
+  if (!isValidObjectId(id)) throw notFound();
+  return id;
 }
 
 export function paginate(query: Record<string, unknown>, defaultSize = 12) {
