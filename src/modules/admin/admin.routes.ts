@@ -5,7 +5,9 @@ import { validateBody } from "../../middleware/validate.js";
 import { badRequest, conflict, forbidden, notFound } from "../../shared/errors.js";
 import { audit, escapeRegex, loadCourse, notify, oid, paginate, slugify } from "../../shared/helpers.js";
 import { Category, Course, COURSE_STATUSES } from "../courses/course.model.js";
-import { courseDto } from "../courses/courses.routes.js";
+import { presentCourse, presentCourses } from "../courses/course.presenter.js";
+import { rejectCourseBody } from "../courses/course.schemas.js";
+import * as courseService from "../courses/course.service.js";
 import { AuditLog } from "../platform/platform.model.js";
 import { ROLES, User, toPublicUser } from "../users/user.model.js";
 
@@ -39,36 +41,22 @@ adminRouter.get("/admin/courses", async (req, res) => {
   const filter: Record<string, unknown> = {};
   if (typeof req.query.status === "string" && (COURSE_STATUSES as readonly string[]).includes(req.query.status)) filter.status = req.query.status;
   const courses = await Course.find(filter).sort({ updatedAt: -1 }).limit(200);
-  res.json({ data: await Promise.all(courses.map((c) => courseDto(c))) });
+  res.json({ data: await presentCourses(courses) });
 });
 
 adminRouter.get("/admin/courses/pending", async (_req, res) => {
   const courses = await Course.find({ status: "pending_review" }).sort({ updatedAt: 1 });
-  res.json({ data: await Promise.all(courses.map((c) => courseDto(c))) });
+  res.json({ data: await presentCourses(courses) });
 });
 
 adminRouter.patch("/admin/courses/:courseId/approve", async (req, res) => {
-  const course = await loadCourse(req.params.courseId);
-  if (course.status !== "pending_review") throw conflict("Only courses pending review can be approved");
-  course.status = "published";
-  course.publishedAt = new Date();
-  course.moderationNote = undefined;
-  await course.save();
-  await audit(req.user!, "course.approve", "course", course.id, { title: course.title });
-  await notify(course.instructorId, "course_approved", "Course approved", `"${course.title}" is now published.`, "/instructor/courses");
-  res.json({ data: await courseDto(course), message: "Course approved" });
+  const course = await courseService.approveCourse(await loadCourse(req.params.courseId), req.user!);
+  res.json({ data: await presentCourse(course), message: "Course approved" });
 });
 
-const rejectBody = z.object({ note: z.string().trim().min(3, "A moderation note is required").max(1000) }).strict();
-adminRouter.patch("/admin/courses/:courseId/reject", validateBody(rejectBody), async (req, res) => {
-  const course = await loadCourse(req.params.courseId);
-  if (course.status !== "pending_review") throw conflict("Only courses pending review can be rejected");
-  course.status = "rejected";
-  course.moderationNote = req.body.note;
-  await course.save();
-  await audit(req.user!, "course.reject", "course", course.id, { title: course.title, note: req.body.note });
-  await notify(course.instructorId, "course_rejected", "Course needs changes", `"${course.title}" was rejected: ${req.body.note}`, "/instructor/courses");
-  res.json({ data: await courseDto(course), message: "Course rejected" });
+adminRouter.patch("/admin/courses/:courseId/reject", validateBody(rejectCourseBody), async (req, res) => {
+  const course = await courseService.rejectCourse(await loadCourse(req.params.courseId), req.user!, req.body.note);
+  res.json({ data: await presentCourse(course), message: "Course rejected" });
 });
 
 // ---------- Categories ----------

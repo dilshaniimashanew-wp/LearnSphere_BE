@@ -2,7 +2,7 @@ import { Router } from "express";
 import { authenticate, requireRole } from "../../middleware/auth.js";
 import { Assignment, Quiz, QuizAttempt, Submission } from "../assessments/assessment.model.js";
 import { Course } from "../courses/course.model.js";
-import { courseDto } from "../courses/courses.routes.js";
+import { presentCourse } from "../courses/course.presenter.js";
 import { Enrollment } from "../enrollments/enrollment.model.js";
 import { courseProgress } from "../enrollments/progress.service.js";
 import { Certificate } from "../platform/platform.model.js";
@@ -102,7 +102,7 @@ analyticsRouter.get("/student/summary", authenticate, requireRole("student"), as
         active.map(async (e) => {
           const course = await Course.findById(e.courseId);
           const p = await courseProgress(req.user!._id, e.courseId);
-          return { courseId: String(e.courseId), title: course?.title, progress: p.percent, course: course ? await courseDto(course) : null };
+          return { courseId: String(e.courseId), title: course?.title, progress: p.percent, course: course ? await presentCourse(course) : null };
         }),
       ),
     },
