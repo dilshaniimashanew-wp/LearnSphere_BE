@@ -39,3 +39,27 @@ const auditLogSchema = new Schema(
 );
 auditLogSchema.index({ createdAt: -1 });
 export const AuditLog = model("AuditLog", auditLogSchema);
+
+const announcementSchema = new Schema(
+  {
+    courseId: { type: Schema.Types.ObjectId, ref: "Course", required: true, index: true },
+    authorId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    title: { type: String, required: true, trim: true, maxlength: 120 },
+    body: { type: String, required: true, trim: true, maxlength: 4000 },
+  },
+  { timestamps: true },
+);
+export const Announcement = model("Announcement", announcementSchema);
+
+const reviewSchema = new Schema(
+  {
+    courseId: { type: Schema.Types.ObjectId, ref: "Course", required: true },
+    studentId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    rating: { type: Number, required: true, min: 1, max: 5 },
+    comment: { type: String, trim: true, maxlength: 2000 },
+  },
+  { timestamps: true },
+);
+// One review per student per course.
+reviewSchema.index({ courseId: 1, studentId: 1 }, { unique: true });
+export const Review = model("Review", reviewSchema);
