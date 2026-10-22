@@ -43,7 +43,7 @@
     "@types/node": "^26.6.5",
     "@types/supertest": "^7.2.1",
     "@types/swagger-ui-express": "^4.1.8",
-    "eslint": "^9.39.5",
+    "eslint": "^10.13.0",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.13.0",
     "mongodb-memory-server": "^11.3.0",
