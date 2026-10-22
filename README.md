@@ -31,6 +31,15 @@ take server-graded quizzes and submit assignments. Instructors grade submissions
 When every required lesson is complete and every quiz is passed, the enrollment completes and a certificate with a
 public verification code is issued.
 
+## More features
+
+- **Announcements:** instructors post to their course; enrolled students are notified.
+- **Ratings and reviews:** only enrolled students can review a published course (one review each, editable). Course cards show the average.
+- **Reorder:** modules and lessons can be reordered, and lessons moved between modules (`PATCH /courses/:id/modules/reorder`, `PATCH /modules/:id/lessons/reorder`).
+- **Edit quizzes:** `PUT /quizzes/:id` updates settings and questions in place. Existing questions keep their ids, so past attempts stay valid.
+- **Profile avatar:** `PATCH /users/me` accepts a small image data URL (or https link). The web app crops and resizes it to 128px first.
+- **Sample data:** quizzes have 6 to 10 dummy questions each, plus sample announcements and reviews.
+
 ## Notes
 
 - Authentication uses an HttpOnly session cookie. Every protected route checks identity, role and ownership on the server.
