@@ -8,7 +8,8 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
-    "seed:admin": "tsx src/scripts/seed-admin.ts"
+    "seed:admin": "tsx src/scripts/seed-admin.ts",
+    "seed:demo": "tsx src/scripts/seed-demo.ts"
   },
   "dependencies": {
     "argon2": "^0.45.1",
