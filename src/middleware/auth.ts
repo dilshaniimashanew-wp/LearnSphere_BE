@@ -41,6 +41,21 @@ export const authenticate: RequestHandler = async (req, _res, next) => {
   }
 };
 
+/** Public endpoints that behave differently for signed-in users. Invalid or missing sessions are ignored. */
+export const optionalAuth: RequestHandler = async (req, _res, next) => {
+  const token = req.cookies?.[SESSION_COOKIE];
+  if (token) {
+    try {
+      const payload = jwt.verify(token, env.SESSION_SECRET) as { sub: string };
+      const user = await User.findById(payload.sub);
+      if (user && user.status === "active") req.user = user;
+    } catch {
+      // treat as signed out
+    }
+  }
+  next();
+};
+
 export function requireRole(...roles: Role[]): RequestHandler {
   return (req, _res, next) => {
     if (!req.user) return next(unauthorized());
