@@ -35,7 +35,7 @@
   },
   "devDependencies": {
     "@apidevtools/swagger-parser": "^13.1.0",
-    "@eslint/js": "^9.39.5",
+    "@eslint/js": "^10.0.1",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
