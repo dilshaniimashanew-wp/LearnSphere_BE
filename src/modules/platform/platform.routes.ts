@@ -11,10 +11,16 @@ export const platformRouter = Router();
 
 // ---------- Certificates ----------
 platformRouter.get("/certificates/me", authenticate, requireRole("student"), async (req, res) => {
-  const certs = await Certificate.find({ studentId: req.user!._id, revokedAt: { $exists: false } }).sort({ issuedAt: -1 }).lean();
-  const courses = await Course.find({ _id: { $in: certs.map((c) => c.courseId) } }).select("title").lean();
+  const certs = await Certificate.find({ studentId: req.user!._id, revokedAt: { $exists: false } })
+    .sort({ issuedAt: -1 })
+    .lean();
+  const courses = await Course.find({ _id: { $in: certs.map((c) => c.courseId) } })
+    .select("title")
+    .lean();
   const titles = new Map(courses.map((c) => [String(c._id), c.title]));
-  res.json({ data: certs.map((c) => ({ id: String(c._id), course: titles.get(String(c.courseId)) ?? "Course", code: c.certificateCode, issuedAt: c.issuedAt })) });
+  res.json({
+    data: certs.map((c) => ({ id: String(c._id), course: titles.get(String(c.courseId)) ?? "Course", code: c.certificateCode, issuedAt: c.issuedAt })),
+  });
 });
 
 // Public: exposes only the minimum needed to verify a certificate.
@@ -64,10 +70,16 @@ platformRouter.get("/grades/me", authenticate, requireRole("student"), async (re
     Submission.find({ studentId: req.user!._id }).sort({ submittedAt: -1 }).lean(),
   ]);
   const [quizzes, assignments] = await Promise.all([
-    Quiz.find({ _id: { $in: attempts.map((a) => a.quizId) } }).select("title courseId").lean(),
-    Assignment.find({ _id: { $in: submissions.map((s) => s.assignmentId) } }).select("title courseId maxPoints").lean(),
+    Quiz.find({ _id: { $in: attempts.map((a) => a.quizId) } })
+      .select("title courseId")
+      .lean(),
+    Assignment.find({ _id: { $in: submissions.map((s) => s.assignmentId) } })
+      .select("title courseId maxPoints")
+      .lean(),
   ]);
-  const courses = await Course.find({ _id: { $in: [...quizzes.map((q) => q.courseId), ...assignments.map((a) => a.courseId)] } }).select("title").lean();
+  const courses = await Course.find({ _id: { $in: [...quizzes.map((q) => q.courseId), ...assignments.map((a) => a.courseId)] } })
+    .select("title")
+    .lean();
   const courseTitle = new Map(courses.map((c) => [String(c._id), c.title]));
   const quizById = new Map(quizzes.map((q) => [String(q._id), q]));
   const assignmentById = new Map(assignments.map((a) => [String(a._id), a]));

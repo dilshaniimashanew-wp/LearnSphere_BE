@@ -72,7 +72,14 @@ describe("students", () => {
   });
 
   it("cannot read lessons, quizzes, assignments or announcements without enrolling", async () => {
-    for (const path of [`/courses/${ctx.course.id}/lessons`, `/courses/${ctx.course.id}/quizzes`, `/quizzes/${ctx.quiz.id}`, `/courses/${ctx.course.id}/assignments`, `/assignments/${ctx.assignment.id}`, `/courses/${ctx.course.id}/announcements`]) {
+    for (const path of [
+      `/courses/${ctx.course.id}/lessons`,
+      `/courses/${ctx.course.id}/quizzes`,
+      `/quizzes/${ctx.quiz.id}`,
+      `/courses/${ctx.course.id}/assignments`,
+      `/assignments/${ctx.assignment.id}`,
+      `/courses/${ctx.course.id}/announcements`,
+    ]) {
       expect((await ctx.student.agent.get(api(path))).status, path).toBe(403);
     }
   });
@@ -98,8 +105,13 @@ describe("another instructor", () => {
     expect((await a.delete(api(`/lessons/${ctx.lesson.id}`))).status).toBe(403);
     expect((await a.post(api(`/courses/${ctx.course.id}/archive`))).status).toBe(403);
     expect((await a.get(api(`/courses/${ctx.course.id}/students`))).status).toBe(403);
-    expect((await a.post(api(`/courses/${ctx.course.id}/quizzes`)).send({ title: "Quiz", questions: [{ type: "true_false", prompt: "Is it?", correctIndex: 0 }] })).status).toBe(403);
-    expect((await a.post(api(`/courses/${ctx.course.id}/assignments`)).send({ title: "Task", instructions: "Do it", dueAt: new Date().toISOString() })).status).toBe(403);
+    expect(
+      (await a.post(api(`/courses/${ctx.course.id}/quizzes`)).send({ title: "Quiz", questions: [{ type: "true_false", prompt: "Is it?", correctIndex: 0 }] }))
+        .status,
+    ).toBe(403);
+    expect(
+      (await a.post(api(`/courses/${ctx.course.id}/assignments`)).send({ title: "Task", instructions: "Do it", dueAt: new Date().toISOString() })).status,
+    ).toBe(403);
     expect((await a.post(api(`/courses/${ctx.course.id}/announcements`)).send({ title: "Hello", body: "Valid message" })).status).toBe(403);
   });
 

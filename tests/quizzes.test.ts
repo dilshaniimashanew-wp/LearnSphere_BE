@@ -12,7 +12,10 @@ let quizId: string;
 let q1: string;
 let q2: string;
 
-const correct = () => [{ questionId: q1, optionId: "a" }, { questionId: q2, optionId: "b" }];
+const correct = () => [
+  { questionId: q1, optionId: "a" },
+  { questionId: q2, optionId: "b" },
+];
 
 beforeAll(async () => {
   await resetDb();
@@ -74,7 +77,12 @@ describe("attempts and grading", () => {
   });
 
   it("grades on the server: partial credit does not pass a 60% mark", async () => {
-    const res = await student.agent.post(api(`/quiz-attempts/${attemptId}/submit`)).send({ answers: [{ questionId: q1, optionId: "b" }, { questionId: q2, optionId: "b" }] });
+    const res = await student.agent.post(api(`/quiz-attempts/${attemptId}/submit`)).send({
+      answers: [
+        { questionId: q1, optionId: "b" },
+        { questionId: q2, optionId: "b" },
+      ],
+    });
     expect(res.status).toBe(200);
     expect(res.body.data).toMatchObject({ score: 1, maxScore: 3, passed: false });
   });
@@ -116,7 +124,10 @@ describe("time limit", () => {
     const start = await lateStudent.agent.post(api(`/quizzes/${q.quiz.id}/attempts`));
     await QuizAttempt.updateOne({ _id: start.body.data.attemptId }, { startedAt: new Date(Date.now() - 10 * 60_000) });
     const res = await lateStudent.agent.post(api(`/quiz-attempts/${start.body.data.attemptId}/submit`)).send({
-      answers: [{ questionId: q.q1.id, optionId: "a" }, { questionId: q.q2.id, optionId: "b" }],
+      answers: [
+        { questionId: q.q1.id, optionId: "a" },
+        { questionId: q.q2.id, optionId: "b" },
+      ],
     });
     expect(res.status).toBe(409);
     expect(res.body.error.code).toBe("TIME_EXPIRED");
@@ -129,10 +140,14 @@ describe("creating and editing quizzes", () => {
   const question = (extra = {}) => ({ type: "multiple_choice", prompt: "Pick the right one", options: ["x", "y", "z"], correctIndex: 1, ...extra });
 
   it("creates a quiz and rejects invalid questions", async () => {
-    const ok = await owner.agent.post(api(`/courses/${courseId}/quizzes`)).send({ title: "Created quiz", questions: [question(), { type: "true_false", prompt: "True or false?", correctIndex: 0 }] });
+    const ok = await owner.agent
+      .post(api(`/courses/${courseId}/quizzes`))
+      .send({ title: "Created quiz", questions: [question(), { type: "true_false", prompt: "True or false?", correctIndex: 0 }] });
     expect(ok.status).toBe(201);
     expect(ok.body.data.questionCount).toBe(2);
-    expect((await owner.agent.post(api(`/courses/${courseId}/quizzes`)).send({ title: "Bad", questions: [question({ options: ["only one"] })] })).status).toBe(400);
+    expect((await owner.agent.post(api(`/courses/${courseId}/quizzes`)).send({ title: "Bad", questions: [question({ options: ["only one"] })] })).status).toBe(
+      400,
+    );
     expect((await owner.agent.post(api(`/courses/${courseId}/quizzes`)).send({ title: "Bad", questions: [question({ correctIndex: 9 })] })).status).toBe(400);
     expect((await owner.agent.post(api(`/courses/${courseId}/quizzes`)).send({ title: "Bad", questions: [] })).status).toBe(400);
   });
@@ -147,7 +162,9 @@ describe("creating and editing quizzes", () => {
       correctIndex: q.correctOptionId === "a" ? 0 : 1,
     });
     const edited = [{ ...toBody(before[0]), prompt: "Edited prompt?" }, question()];
-    const res = await owner.agent.put(api(`/quizzes/${quizId}`)).send({ title: "Quiz v2", passMark: 80, maxAttempts: 5, timeLimitSeconds: 120, questions: edited });
+    const res = await owner.agent
+      .put(api(`/quizzes/${quizId}`))
+      .send({ title: "Quiz v2", passMark: 80, maxAttempts: 5, timeLimitSeconds: 120, questions: edited });
     expect(res.status).toBe(200);
 
     const after = (await owner.agent.get(api(`/quizzes/${quizId}`))).body.data;

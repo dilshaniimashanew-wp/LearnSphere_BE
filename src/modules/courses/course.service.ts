@@ -105,8 +105,11 @@ export async function reorderModules(course: CourseDoc, ids: string[]) {
 /** Sets the lesson order of one module. Lessons dragged in from another module of the same course move here. */
 export async function reorderLessons(mod: { _id: unknown; courseId: unknown }, ids: string[]) {
   if (new Set(ids).size !== ids.length) throw badRequest("Duplicate lesson ids");
-  if ((await Lesson.countDocuments({ _id: { $in: ids }, courseId: mod.courseId as never })) !== ids.length) throw badRequest("All lessons must belong to this course");
-  await Lesson.bulkWrite(ids.map((id, order) => ({ updateOne: { filter: { _id: id, courseId: mod.courseId as never }, update: { $set: { order, moduleId: mod._id as never } } } })));
+  if ((await Lesson.countDocuments({ _id: { $in: ids }, courseId: mod.courseId as never })) !== ids.length)
+    throw badRequest("All lessons must belong to this course");
+  await Lesson.bulkWrite(
+    ids.map((id, order) => ({ updateOne: { filter: { _id: id, courseId: mod.courseId as never }, update: { $set: { order, moduleId: mod._id as never } } } })),
+  );
 }
 
 export async function ownedModule(moduleId: string, user: UserDoc) {

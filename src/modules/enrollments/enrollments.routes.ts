@@ -8,7 +8,7 @@ import { courseProgress } from "./progress.service.js";
 
 export const enrollmentsRouter = Router();
 
-const progressBody = z.object({ completed: z.boolean() }).strict();
+export const progressBody = z.object({ completed: z.boolean() }).strict();
 
 enrollmentsRouter.post("/courses/:courseId/enroll", ...protect("student"), async (req, res) => {
   await enrollments.enroll(req.user!, await loadCourse(req.params.courseId));

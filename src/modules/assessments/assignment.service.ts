@@ -35,7 +35,15 @@ export const submissionDto = (s: SubmissionLike) => ({
   grade: s.status === "graded" ? { pointsAwarded: s.grade?.pointsAwarded, feedback: s.grade?.feedback, gradedAt: s.grade?.gradedAt } : null,
 });
 
-export const assignmentDto = (a: { _id: unknown; courseId: unknown; title: string; instructions: string; dueAt: Date; maxPoints: number; allowResubmission: boolean }) => ({
+export const assignmentDto = (a: {
+  _id: unknown;
+  courseId: unknown;
+  title: string;
+  instructions: string;
+  dueAt: Date;
+  maxPoints: number;
+  allowResubmission: boolean;
+}) => ({
   id: String(a._id),
   courseId: String(a.courseId),
   title: a.title,
@@ -50,7 +58,11 @@ export const assignmentDto = (a: { _id: unknown; courseId: unknown; title: strin
 export async function createAssignment(course: CourseDoc, input: CreateAssignmentInput) {
   const assignment = await Assignment.create({ ...input, courseId: course._id });
   const enrolled = await Enrollment.find({ courseId: course._id }).select("studentId").lean();
-  await Promise.all(enrolled.map((e) => notify(e.studentId, "new_assignment", "New assignment", `"${assignment.title}" was added to ${course.title}.`, `/student/courses/${course.id}`)));
+  await Promise.all(
+    enrolled.map((e) =>
+      notify(e.studentId, "new_assignment", "New assignment", `"${assignment.title}" was added to ${course.title}.`, `/student/courses/${course.id}`),
+    ),
+  );
   return assignment;
 }
 
@@ -58,16 +70,23 @@ export async function listForCourse(course: CourseDoc, user: UserDoc) {
   const assignments = await Assignment.find({ courseId: course._id }).sort({ dueAt: 1 }).lean();
   const mine = user.role === "student" ? await Submission.find({ studentId: user._id, courseId: course._id }).lean() : [];
   const byAssignment = new Map(mine.map((s) => [String(s.assignmentId), s]));
-  return assignments.map((a) => ({ ...assignmentDto(a), submission: byAssignment.has(String(a._id)) ? submissionDto(byAssignment.get(String(a._id))!) : null }));
+  return assignments.map((a) => ({
+    ...assignmentDto(a),
+    submission: byAssignment.has(String(a._id)) ? submissionDto(byAssignment.get(String(a._id))!) : null,
+  }));
 }
 
 /** Every assignment across the student's enrolled courses, with their own submission status. */
 export async function listForStudent(student: UserDoc) {
   const courseIds = (await Enrollment.find({ studentId: student._id }).select("courseId").lean()).map((e) => e.courseId);
   const [assignments, submissions, courses] = await Promise.all([
-    Assignment.find({ courseId: { $in: courseIds } }).sort({ dueAt: 1 }).lean(),
+    Assignment.find({ courseId: { $in: courseIds } })
+      .sort({ dueAt: 1 })
+      .lean(),
     Submission.find({ studentId: student._id }).lean(),
-    Course.find({ _id: { $in: courseIds } }).select("title").lean(),
+    Course.find({ _id: { $in: courseIds } })
+      .select("title")
+      .lean(),
   ]);
   const titles = new Map(courses.map((c) => [String(c._id), c.title]));
   const byAssignment = new Map(submissions.map((s) => [String(s.assignmentId), s]));
@@ -102,13 +121,21 @@ export async function submitWork(assignmentId: string, student: UserDoc, input: 
       throw e;
     }
   }
-  await notify(course.instructorId, "new_submission", "New submission", `${student.name} submitted "${assignment.title}"${isLate ? " (late)" : ""}.`, "/instructor/submissions");
+  await notify(
+    course.instructorId,
+    "new_submission",
+    "New submission",
+    `${student.name} submitted "${assignment.title}"${isLate ? " (late)" : ""}.`,
+    "/instructor/submissions",
+  );
   return submission;
 }
 
 export async function listSubmissionsForAssignment(assignmentId: string) {
   const submissions = await Submission.find({ assignmentId }).sort({ submittedAt: -1 }).lean();
-  const users = await User.find({ _id: { $in: submissions.map((s) => s.studentId) } }).select("name").lean();
+  const users = await User.find({ _id: { $in: submissions.map((s) => s.studentId) } })
+    .select("name")
+    .lean();
   const names = new Map(users.map((u) => [String(u._id), u.name]));
   return submissions.map((s) => ({ ...submissionDto(s), studentName: names.get(String(s.studentId)) }));
 }
@@ -116,13 +143,20 @@ export async function listSubmissionsForAssignment(assignmentId: string) {
 /** Submissions across the instructor's own courses (admins see every course). */
 export async function listForInstructor(user: UserDoc, query: Record<string, unknown>) {
   const { page, pageSize, skip } = paginate(query, 25);
-  const courses = await Course.find(user.role === "admin" ? {} : { instructorId: user._id }).select("title").lean();
+  const courses = await Course.find(user.role === "admin" ? {} : { instructorId: user._id })
+    .select("title")
+    .lean();
   const filter: Record<string, unknown> = { courseId: { $in: courses.map((c) => c._id) } };
   if (query.status === "submitted" || query.status === "graded") filter.status = query.status;
 
-  const [submissions, total] = await Promise.all([Submission.find(filter).sort({ submittedAt: -1 }).skip(skip).limit(pageSize).lean(), Submission.countDocuments(filter)]);
+  const [submissions, total] = await Promise.all([
+    Submission.find(filter).sort({ submittedAt: -1 }).skip(skip).limit(pageSize).lean(),
+    Submission.countDocuments(filter),
+  ]);
   const [users, assignments] = await Promise.all([
-    User.find({ _id: { $in: submissions.map((s) => s.studentId) } }).select("name").lean(),
+    User.find({ _id: { $in: submissions.map((s) => s.studentId) } })
+      .select("name")
+      .lean(),
     Assignment.find({ _id: { $in: submissions.map((s) => s.assignmentId) } }).lean(),
   ]);
   const names = new Map(users.map((u) => [String(u._id), u.name]));
@@ -154,6 +188,12 @@ export async function gradeSubmission(submissionId: string, grader: UserDoc, inp
   submission.status = "graded";
   submission.grade = { pointsAwarded: input.pointsAwarded, feedback: input.feedback, gradedBy: grader._id, gradedAt: new Date() };
   await submission.save();
-  await notify(submission.studentId, "assignment_graded", "Assignment graded", `"${assignment.title}" was graded: ${input.pointsAwarded}/${assignment.maxPoints}.`, "/student/grades");
+  await notify(
+    submission.studentId,
+    "assignment_graded",
+    "Assignment graded",
+    `"${assignment.title}" was graded: ${input.pointsAwarded}/${assignment.maxPoints}.`,
+    "/student/grades",
+  );
   return submission;
 }

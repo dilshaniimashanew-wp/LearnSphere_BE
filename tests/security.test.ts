@@ -127,7 +127,10 @@ describe("refresh token rotation", () => {
     const { email } = await createUser("student");
     const phone = await rawLogin(email);
     const laptop = await rawLogin(email);
-    const change = await request(app).patch(api("/users/me/password")).set("Cookie", laptop.access).send({ currentPassword: PASSWORD, newPassword: "BrandNew123" });
+    const change = await request(app)
+      .patch(api("/users/me/password"))
+      .set("Cookie", laptop.access)
+      .send({ currentPassword: PASSWORD, newPassword: "BrandNew123" });
     expect(change.status).toBe(200);
     expect((await refreshWith(phone.refresh)).status).toBe(401);
     expect((await refreshWith(laptop.refresh)).status).toBe(401); // old token is gone too, but this device got a fresh pair

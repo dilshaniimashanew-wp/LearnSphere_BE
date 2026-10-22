@@ -35,7 +35,10 @@ export async function refreshSession(req: Request, res: Response) {
   const tokenHash = hashToken(token);
 
   // Atomic: only one request can consume a given token.
-  const session = await RefreshSession.findOneAndUpdate({ tokenHash, revokedAt: { $exists: false }, expiresAt: { $gt: new Date() } }, { revokedAt: new Date() });
+  const session = await RefreshSession.findOneAndUpdate(
+    { tokenHash, revokedAt: { $exists: false }, expiresAt: { $gt: new Date() } },
+    { revokedAt: new Date() },
+  );
   if (!session) {
     const reused = await RefreshSession.findOne({ tokenHash });
     if (reused) await RefreshSession.deleteMany({ userId: reused.userId });

@@ -37,7 +37,15 @@ quizzesRouter.get("/courses/:courseId/quizzes", ...protect(), async (req, res) =
 quizzesRouter.get("/quizzes/:quizId", ...protect(), async (req, res) => {
   const { quiz, questions } = await quizzes.getQuizDetail(oid(req.params.quizId), req.user!);
   res.json({
-    data: { id: quiz.id, title: quiz.title, instructions: quiz.instructions, timeLimitSeconds: quiz.timeLimitSeconds, passMark: quiz.passMark, maxAttempts: quiz.maxAttempts, questions },
+    data: {
+      id: quiz.id,
+      title: quiz.title,
+      instructions: quiz.instructions,
+      timeLimitSeconds: quiz.timeLimitSeconds,
+      passMark: quiz.passMark,
+      maxAttempts: quiz.maxAttempts,
+      questions,
+    },
   });
 });
 

@@ -20,7 +20,13 @@ beforeAll(async () => {
 });
 
 describe("course creation and validation", () => {
-  const body = () => ({ title: "Testing the workflow", summary: "A summary that is long enough.", description: "A description that is definitely longer than thirty characters.", categoryId, level: "beginner" });
+  const body = () => ({
+    title: "Testing the workflow",
+    summary: "A summary that is long enough.",
+    description: "A description that is definitely longer than thirty characters.",
+    categoryId,
+    level: "beginner",
+  });
 
   it("creates a draft owned by the instructor", async () => {
     const res = await instructor.agent.post(api("/courses")).send(body());
@@ -38,7 +44,9 @@ describe("course creation and validation", () => {
   it("only allows https thumbnails", async () => {
     expect((await instructor.agent.patch(api(`/courses/${courseId}`)).send({ thumbnailUrl: "http://insecure.test/a.png" })).status).toBe(400);
     expect((await instructor.agent.patch(api(`/courses/${courseId}`)).send({ thumbnailUrl: "javascript:alert(1)" })).status).toBe(400);
-    expect((await instructor.agent.patch(api(`/courses/${courseId}`)).send({ thumbnailUrl: "https://img.test/a.png" })).body.data.thumbnailUrl).toBe("https://img.test/a.png");
+    expect((await instructor.agent.patch(api(`/courses/${courseId}`)).send({ thumbnailUrl: "https://img.test/a.png" })).body.data.thumbnailUrl).toBe(
+      "https://img.test/a.png",
+    );
     expect((await instructor.agent.patch(api(`/courses/${courseId}`)).send({ thumbnailUrl: null })).body.data.thumbnailUrl).toBeNull();
   });
 
@@ -139,7 +147,10 @@ describe("enrollment, progress and completion", () => {
 
     const start = await student.agent.post(api(`/quizzes/${quiz.id}/attempts`));
     const submit = await student.agent.post(api(`/quiz-attempts/${start.body.data.attemptId}/submit`)).send({
-      answers: [{ questionId: q1.id, optionId: "a" }, { questionId: q2.id, optionId: "b" }],
+      answers: [
+        { questionId: q1.id, optionId: "a" },
+        { questionId: q2.id, optionId: "b" },
+      ],
     });
     expect(submit.body.data).toMatchObject({ score: 3, maxScore: 3, passed: true });
 

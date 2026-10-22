@@ -9,7 +9,11 @@ describe("gradeAnswers", () => {
   const id = (i: number) => String(questions[i]._id);
 
   it("awards points only for correct answers", () => {
-    const r = gradeAnswers(questions, [{ questionId: id(0), optionId: "a" }, { questionId: id(1), optionId: "a" }, { questionId: id(2), optionId: "c" }]);
+    const r = gradeAnswers(questions, [
+      { questionId: id(0), optionId: "a" },
+      { questionId: id(1), optionId: "a" },
+      { questionId: id(2), optionId: "c" },
+    ]);
     expect(r.score).toBe(5);
     expect(r.maxScore).toBe(6);
     expect(r.graded.map((g) => g.correct)).toEqual([true, false, true]);
@@ -20,12 +24,19 @@ describe("gradeAnswers", () => {
   });
 
   it("ignores answers for unknown questions and duplicate-question tampering", () => {
-    const r = gradeAnswers(questions, [{ questionId: "not-a-question", optionId: "a" }, { questionId: id(0), optionId: "a" }, { questionId: id(0), optionId: "z" }]);
+    const r = gradeAnswers(questions, [
+      { questionId: "not-a-question", optionId: "a" },
+      { questionId: id(0), optionId: "a" },
+      { questionId: id(0), optionId: "z" },
+    ]);
     expect(r.score).toBe(0); // the last answer for a question wins, and "z" is wrong
   });
 
   it("gives full marks for a perfect paper", () => {
-    const r = gradeAnswers(questions, questions.map((x, i) => ({ questionId: id(i), optionId: x.correctOptionId })));
+    const r = gradeAnswers(
+      questions,
+      questions.map((x, i) => ({ questionId: id(i), optionId: x.correctOptionId })),
+    );
     expect(r.score).toBe(r.maxScore);
   });
 
@@ -60,7 +71,11 @@ describe("buildQuestionDocs", () => {
 
   it("assigns letter option ids, an order and the correct option", () => {
     const [m] = buildQuestionDocs([{ ...base, type: "multiple_choice", options: ["x", "y", "z"], correctIndex: 2 }]);
-    expect(m.doc.options).toEqual([{ id: "a", text: "x" }, { id: "b", text: "y" }, { id: "c", text: "z" }]);
+    expect(m.doc.options).toEqual([
+      { id: "a", text: "x" },
+      { id: "b", text: "y" },
+      { id: "c", text: "z" },
+    ]);
     expect(m.doc.correctOptionId).toBe("c");
     expect(m.doc.order).toBe(0);
   });

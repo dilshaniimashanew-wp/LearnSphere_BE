@@ -43,7 +43,9 @@ export async function listForStudent(student: UserDoc) {
 
 export async function listStudents(course: CourseDoc) {
   const enrollments = await Enrollment.find({ courseId: course._id }).sort({ enrolledAt: -1 }).lean();
-  const users = await User.find({ _id: { $in: enrollments.map((e) => e.studentId) } }).select("name email").lean();
+  const users = await User.find({ _id: { $in: enrollments.map((e) => e.studentId) } })
+    .select("name email")
+    .lean();
   const byId = new Map(users.map((u) => [String(u._id), u]));
   return Promise.all(
     enrollments.map(async (e) => ({
@@ -67,7 +69,11 @@ export async function setLessonProgress(student: UserDoc, lessonId: string, comp
 
   if (completed) {
     // Upsert keeps this idempotent: marking twice never creates duplicates.
-    await LessonProgress.updateOne({ studentId: student._id, lessonId: lesson._id }, { $setOnInsert: { courseId: course._id, completedAt: new Date() } }, { upsert: true });
+    await LessonProgress.updateOne(
+      { studentId: student._id, lessonId: lesson._id },
+      { $setOnInsert: { courseId: course._id, completedAt: new Date() } },
+      { upsert: true },
+    );
   } else {
     await LessonProgress.deleteOne({ studentId: student._id, lessonId: lesson._id });
   }

@@ -18,7 +18,12 @@ const courseFields = {
 };
 
 export const createCourseBody = z
-  .object({ ...courseFields, objectives: courseFields.objectives.default([]), prerequisites: courseFields.prerequisites.default([]), thumbnailUrl: courseFields.thumbnailUrl.optional() })
+  .object({
+    ...courseFields,
+    objectives: courseFields.objectives.default([]),
+    prerequisites: courseFields.prerequisites.default([]),
+    thumbnailUrl: courseFields.thumbnailUrl.optional(),
+  })
   .strict();
 export const updateCourseBody = z.object(courseFields).partial().strict();
 
@@ -27,7 +32,9 @@ const moduleFields = {
   description: z.string().trim().max(500),
   order: z.number().int().min(0),
 };
-export const createModuleBody = z.object({ title: moduleFields.title, description: moduleFields.description.optional(), order: moduleFields.order.optional() }).strict();
+export const createModuleBody = z
+  .object({ title: moduleFields.title, description: moduleFields.description.optional(), order: moduleFields.order.optional() })
+  .strict();
 export const updateModuleBody = z.object(moduleFields).partial().strict();
 
 const lessonFields = {

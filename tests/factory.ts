@@ -80,10 +80,38 @@ export async function createCourse(
 
 /** A quiz whose correct option is always "a" for the first question and "b" for the second. */
 export async function createQuiz(courseId: mongoose.Types.ObjectId, opts: { passMark?: number; maxAttempts?: number; timeLimitSeconds?: number } = {}) {
-  const quiz = await Quiz.create({ courseId, title: "Test quiz", passMark: opts.passMark ?? 50, maxAttempts: opts.maxAttempts ?? 3, timeLimitSeconds: opts.timeLimitSeconds ?? 600 });
+  const quiz = await Quiz.create({
+    courseId,
+    title: "Test quiz",
+    passMark: opts.passMark ?? 50,
+    maxAttempts: opts.maxAttempts ?? 3,
+    timeLimitSeconds: opts.timeLimitSeconds ?? 600,
+  });
   const [q1, q2] = await Question.insertMany([
-    { quizId: quiz._id, type: "multiple_choice", prompt: "2 + 2 = ?", options: [{ id: "a", text: "4" }, { id: "b", text: "5" }], correctOptionId: "a", points: 2, order: 0 },
-    { quizId: quiz._id, type: "true_false", prompt: "The sky is green.", options: [{ id: "a", text: "True" }, { id: "b", text: "False" }], correctOptionId: "b", points: 1, order: 1 },
+    {
+      quizId: quiz._id,
+      type: "multiple_choice",
+      prompt: "2 + 2 = ?",
+      options: [
+        { id: "a", text: "4" },
+        { id: "b", text: "5" },
+      ],
+      correctOptionId: "a",
+      points: 2,
+      order: 0,
+    },
+    {
+      quizId: quiz._id,
+      type: "true_false",
+      prompt: "The sky is green.",
+      options: [
+        { id: "a", text: "True" },
+        { id: "b", text: "False" },
+      ],
+      correctOptionId: "b",
+      points: 1,
+      order: 1,
+    },
   ]);
   return { quiz, q1, q2 };
 }

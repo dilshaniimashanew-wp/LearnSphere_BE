@@ -26,7 +26,9 @@ export async function authenticateUser(email: string, password: string) {
     throw new AppError(429, "ACCOUNT_LOCKED", "Too many failed attempts. Try again in a few minutes.");
   }
 
-  const valid = user ? await argon2.verify(user.passwordHash, password) : (await argon2.verify(await (dummyHash ??= hashPassword("dummy-password-for-timing")), password), false);
+  const valid = user
+    ? await argon2.verify(user.passwordHash, password)
+    : (await argon2.verify(await (dummyHash ??= hashPassword("dummy-password-for-timing")), password), false);
   if (!user || !valid) {
     if (user) {
       const updated = await User.findByIdAndUpdate(user._id, { $inc: { failedLoginCount: 1 } }, { returnDocument: "after" });

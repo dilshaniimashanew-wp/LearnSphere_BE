@@ -24,7 +24,10 @@ beforeAll(async () => {
   const m2 = await owner.agent.post(api(`/courses/${course.id}/modules`)).send({ title: "Module 2" });
   moduleIds = [m1.id, m2.body.data.id];
   lessonIds = lessons.map((l) => l.id);
-  await Enrollment.create([{ studentId: student.user._id, courseId: course._id }, { studentId: student2.user._id, courseId: course._id }]);
+  await Enrollment.create([
+    { studentId: student.user._id, courseId: course._id },
+    { studentId: student2.user._id, courseId: course._id },
+  ]);
 });
 
 describe("announcements", () => {
