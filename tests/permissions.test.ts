@@ -100,7 +100,7 @@ describe("another instructor", () => {
     expect((await a.get(api(`/courses/${ctx.course.id}/students`))).status).toBe(403);
     expect((await a.post(api(`/courses/${ctx.course.id}/quizzes`)).send({ title: "Quiz", questions: [{ type: "true_false", prompt: "Is it?", correctIndex: 0 }] })).status).toBe(403);
     expect((await a.post(api(`/courses/${ctx.course.id}/assignments`)).send({ title: "Task", instructions: "Do it", dueAt: new Date().toISOString() })).status).toBe(403);
-    expect((await a.post(api(`/courses/${ctx.course.id}/announcements`)).send({ title: "x", body: "y" })).status).toBe(403);
+    expect((await a.post(api(`/courses/${ctx.course.id}/announcements`)).send({ title: "Hello", body: "Valid message" })).status).toBe(403);
   });
 
   it("cannot see another instructor's draft", async () => {
