@@ -1,6 +1,7 @@
 import { Router } from "express";
+import { httpUrl } from "../../shared/schemas.js";
 import { z } from "zod";
-import { authenticate, requireRole } from "../../middleware/auth.js";
+import { protect } from "../../middleware/auth.js";
 import { validateBody } from "../../middleware/validate.js";
 import { badRequest, conflict, forbidden, notFound } from "../../shared/errors.js";
 import { assertCanViewContent, assertEnrolledStudent, assertOwner, assertOwnerOrAdmin, isOwner, loadCourse, notify, oid, paginate } from "../../shared/helpers.js";
@@ -10,7 +11,6 @@ import { User } from "../users/user.model.js";
 import { Assignment, Submission } from "./assessment.model.js";
 
 export const assignmentsRouter = Router();
-assignmentsRouter.use(authenticate);
 
 const assignmentBody = z
   .object({
@@ -23,7 +23,7 @@ const assignmentBody = z
   .strict();
 
 const submissionBody = z
-  .object({ textResponse: z.string().trim().max(10000).optional(), fileUrl: z.string().url().optional() })
+  .object({ textResponse: z.string().trim().max(10000).optional(), fileUrl: httpUrl.optional() })
   .strict()
   .refine((v) => v.textResponse || v.fileUrl, { message: "Provide a written response or a file link" });
 
@@ -53,7 +53,7 @@ const assignmentDto = (a: { _id: unknown; courseId: unknown; title: string; inst
 });
 
 // ---------- Instructor: create ----------
-assignmentsRouter.post("/courses/:courseId/assignments", requireRole("instructor"), validateBody(assignmentBody), async (req, res) => {
+assignmentsRouter.post("/courses/:courseId/assignments", ...protect("instructor"), validateBody(assignmentBody), async (req, res) => {
   const course = await loadCourse(req.params.courseId);
   assertOwner(course, req.user!);
   const assignment = await Assignment.create({ ...req.body, courseId: course._id });
@@ -62,7 +62,7 @@ assignmentsRouter.post("/courses/:courseId/assignments", requireRole("instructor
   res.status(201).json({ data: assignmentDto(assignment), message: "Assignment created" });
 });
 
-assignmentsRouter.get("/courses/:courseId/assignments", async (req, res) => {
+assignmentsRouter.get("/courses/:courseId/assignments", ...protect(), async (req, res) => {
   const course = await loadCourse(req.params.courseId);
   await assertCanViewContent(course, req.user!);
   const assignments = await Assignment.find({ courseId: course._id }).sort({ dueAt: 1 }).lean();
@@ -72,7 +72,7 @@ assignmentsRouter.get("/courses/:courseId/assignments", async (req, res) => {
 });
 
 // ---------- Student: everything due across enrolled courses ----------
-assignmentsRouter.get("/assignments/me", requireRole("student"), async (req, res) => {
+assignmentsRouter.get("/assignments/me", ...protect("student"), async (req, res) => {
   const enrollments = await Enrollment.find({ studentId: req.user!._id }).select("courseId").lean();
   const courseIds = enrollments.map((e) => e.courseId);
   const [assignments, submissions, courses] = await Promise.all([
@@ -91,14 +91,14 @@ assignmentsRouter.get("/assignments/me", requireRole("student"), async (req, res
   });
 });
 
-assignmentsRouter.get("/assignments/:assignmentId", async (req, res) => {
+assignmentsRouter.get("/assignments/:assignmentId", ...protect(), async (req, res) => {
   const assignment = await Assignment.findById(oid(req.params.assignmentId));
   if (!assignment) throw notFound("Assignment not found");
   await assertCanViewContent(await loadCourse(assignment.courseId), req.user!);
   res.json({ data: assignmentDto(assignment) });
 });
 
-assignmentsRouter.post("/assignments/:assignmentId/submissions", requireRole("student"), validateBody(submissionBody), async (req, res) => {
+assignmentsRouter.post("/assignments/:assignmentId/submissions", ...protect("student"), validateBody(submissionBody), async (req, res) => {
   const assignment = await Assignment.findById(oid(req.params.assignmentId));
   if (!assignment) throw notFound("Assignment not found");
   const course = await loadCourse(assignment.courseId);
@@ -126,7 +126,7 @@ assignmentsRouter.post("/assignments/:assignmentId/submissions", requireRole("st
 });
 
 // ---------- Instructor: review & grade ----------
-assignmentsRouter.get("/assignments/:assignmentId/submissions", requireRole("instructor", "admin"), async (req, res) => {
+assignmentsRouter.get("/assignments/:assignmentId/submissions", ...protect("instructor", "admin"), async (req, res) => {
   const assignment = await Assignment.findById(oid(req.params.assignmentId));
   if (!assignment) throw notFound("Assignment not found");
   assertOwnerOrAdmin(await loadCourse(assignment.courseId), req.user!);
@@ -137,7 +137,7 @@ assignmentsRouter.get("/assignments/:assignmentId/submissions", requireRole("ins
 });
 
 /** All submissions across the instructor's own courses (admins see every course). */
-assignmentsRouter.get("/instructor/submissions", requireRole("instructor", "admin"), async (req, res) => {
+assignmentsRouter.get("/instructor/submissions", ...protect("instructor", "admin"), async (req, res) => {
   const { page, pageSize, skip } = paginate(req.query, 25);
   const courseFilter = req.user!.role === "admin" ? {} : { instructorId: req.user!._id };
   const courses = await Course.find(courseFilter).select("title").lean();
@@ -168,7 +168,7 @@ assignmentsRouter.get("/instructor/submissions", requireRole("instructor", "admi
   });
 });
 
-assignmentsRouter.patch("/submissions/:submissionId/grade", requireRole("instructor", "admin"), validateBody(gradeBody), async (req, res) => {
+assignmentsRouter.patch("/submissions/:submissionId/grade", ...protect("instructor", "admin"), validateBody(gradeBody), async (req, res) => {
   const submission = await Submission.findById(oid(req.params.submissionId));
   if (!submission) throw notFound("Submission not found");
   const course = await loadCourse(submission.courseId);

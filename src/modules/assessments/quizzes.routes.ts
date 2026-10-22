@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { authenticate, requireRole } from "../../middleware/auth.js";
+import { protect } from "../../middleware/auth.js";
 import { validateBody } from "../../middleware/validate.js";
 import { AppError, badRequest, conflict, forbidden, notFound } from "../../shared/errors.js";
 import { assertCanViewContent, assertEnrolledStudent, assertOwner, isOwner, loadCourse, oid } from "../../shared/helpers.js";
@@ -8,7 +8,6 @@ import { evaluateCompletion } from "../enrollments/progress.service.js";
 import { Quiz, QuizAttempt, Question } from "./assessment.model.js";
 
 export const quizzesRouter = Router();
-quizzesRouter.use(authenticate);
 
 const GRACE_SECONDS = 10;
 const letters = "abcdefghij";
@@ -67,7 +66,7 @@ const publicQuestion = (q: { _id: unknown; type: string; prompt: string; options
 });
 
 // ---------- Instructor: build a quiz ----------
-quizzesRouter.post("/courses/:courseId/quizzes", requireRole("instructor"), validateBody(quizBody), async (req, res) => {
+quizzesRouter.post("/courses/:courseId/quizzes", ...protect("instructor"), validateBody(quizBody), async (req, res) => {
   const course = await loadCourse(req.params.courseId);
   assertOwner(course, req.user!);
   const { questions, ...settings } = req.body as z.infer<typeof quizBody>;
@@ -92,7 +91,7 @@ quizzesRouter.post("/courses/:courseId/quizzes", requireRole("instructor"), vali
 });
 
 /** Edit a quiz in place. Existing questions keep their id so past attempts stay meaningful. */
-quizzesRouter.put("/quizzes/:quizId", requireRole("instructor"), validateBody(updateQuizBody), async (req, res) => {
+quizzesRouter.put("/quizzes/:quizId", ...protect("instructor"), validateBody(updateQuizBody), async (req, res) => {
   const quiz = await Quiz.findById(oid(req.params.quizId));
   if (!quiz) throw notFound("Quiz not found");
   assertOwner(await loadCourse(quiz.courseId), req.user!);
@@ -120,7 +119,7 @@ quizzesRouter.put("/quizzes/:quizId", requireRole("instructor"), validateBody(up
   res.json({ data: { id: quiz.id, title: quiz.title, questionCount: built.length }, message: "Quiz updated" });
 });
 
-quizzesRouter.get("/courses/:courseId/quizzes", async (req, res) => {
+quizzesRouter.get("/courses/:courseId/quizzes", ...protect(), async (req, res) => {
   const course = await loadCourse(req.params.courseId);
   await assertCanViewContent(course, req.user!);
   const quizzes = await Quiz.find({ courseId: course._id, status: "published" }).sort({ createdAt: 1 }).lean();
@@ -150,7 +149,7 @@ quizzesRouter.get("/courses/:courseId/quizzes", async (req, res) => {
   res.json({ data: items });
 });
 
-quizzesRouter.get("/quizzes/:quizId", async (req, res) => {
+quizzesRouter.get("/quizzes/:quizId", ...protect(), async (req, res) => {
   const quiz = await Quiz.findById(oid(req.params.quizId));
   if (!quiz || quiz.status !== "published") throw notFound("Quiz not found");
   const course = await loadCourse(quiz.courseId);
@@ -186,7 +185,7 @@ async function gradeAndStore(attemptId: unknown, quizId: unknown, answers: { que
   return { graded, score, maxScore };
 }
 
-quizzesRouter.post("/quizzes/:quizId/attempts", requireRole("student"), async (req, res) => {
+quizzesRouter.post("/quizzes/:quizId/attempts", ...protect("student"), async (req, res) => {
   const quiz = await Quiz.findById(oid(req.params.quizId));
   if (!quiz || quiz.status !== "published") throw notFound("Quiz not found");
   const course = await loadCourse(quiz.courseId);
@@ -226,7 +225,7 @@ quizzesRouter.post("/quizzes/:quizId/attempts", requireRole("student"), async (r
   }
 });
 
-quizzesRouter.post("/quiz-attempts/:attemptId/submit", requireRole("student"), validateBody(submitBody), async (req, res) => {
+quizzesRouter.post("/quiz-attempts/:attemptId/submit", ...protect("student"), validateBody(submitBody), async (req, res) => {
   const attemptId = oid(req.params.attemptId);
   // Atomic claim: only one request can move an attempt out of "in_progress", so a double
   // submit (or a retry) can never be graded twice.
@@ -250,7 +249,7 @@ quizzesRouter.post("/quiz-attempts/:attemptId/submit", requireRole("student"), v
   res.json({ data: { attemptId, score, maxScore, percent: Math.round((score / (maxScore || 1)) * 100), passed } });
 });
 
-quizzesRouter.get("/quiz-attempts/:attemptId/result", async (req, res) => {
+quizzesRouter.get("/quiz-attempts/:attemptId/result", ...protect(), async (req, res) => {
   const attempt = await QuizAttempt.findById(oid(req.params.attemptId));
   if (!attempt || attempt.status !== "submitted") throw notFound("Result not found");
   const quiz = await Quiz.findById(attempt.quizId);

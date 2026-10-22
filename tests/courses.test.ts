@@ -59,6 +59,13 @@ describe("modules, lessons and moderation", () => {
     }
   });
 
+  it("rejects script and data URLs in lesson video links", async () => {
+    for (const videoUrl of ["javascript:alert(1)", "data:text/html,<script>alert(1)</script>", "ftp://files.test/x"]) {
+      const res = await instructor.agent.post(api(`/modules/${moduleId}/lessons`)).send({ title: "Bad video", type: "video", videoUrl });
+      expect(res.status, videoUrl).toBe(400);
+    }
+  });
+
   it("goes draft -> pending_review -> rejected (needs a note) -> resubmitted -> published", async () => {
     expect((await instructor.agent.post(api(`/courses/${courseId}/submit-review`))).body.data.status).toBe("pending_review");
     expect((await instructor.agent.post(api(`/courses/${courseId}/submit-review`))).status).toBe(400); // already pending

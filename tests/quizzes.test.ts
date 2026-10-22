@@ -63,7 +63,8 @@ describe("attempts and grading", () => {
   });
 
   it("will not let another user submit or read someone else's attempt", async () => {
-    expect((await stranger.agent.post(api(`/quiz-attempts/${attemptId}/submit`)).send({ answers: [] })).status).toBe(403);
+    // Another student cannot even learn that the attempt exists (404); instructors are refused by role (403).
+    expect((await stranger.agent.post(api(`/quiz-attempts/${attemptId}/submit`)).send({ answers: [] })).status).toBe(404);
     expect((await other.agent.post(api(`/quiz-attempts/${attemptId}/submit`)).send({ answers: [] })).status).toBe(403);
   });
 
