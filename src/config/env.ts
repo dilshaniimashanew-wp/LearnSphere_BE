@@ -9,8 +9,10 @@ const schema = z.object({
   APP_ORIGIN: z.string().url(),
   // Max auth requests (login/register/forgot-password) per IP per 15 minutes
   // Max requests to the whole API per IP per 15 minutes
-  API_RATE_LIMIT: z.coerce.number().int().positive().default(600),
+  API_RATE_LIMIT: z.coerce.number().int().positive().default(1500),
   // Number of reverse proxies in front of the API (so the real client IP is used for rate limits)
+  // Shared secret the web app proxy sends with the real visitor IP (x-client-ip). Optional; at least 16 chars.
+  PROXY_SECRET: z.string().min(16).optional(),
   TRUST_PROXY: z.coerce.number().int().min(0).default(0),
   // Serve Swagger UI at /api/v1/docs (off by default in production)
   ENABLE_DOCS: z.enum(["true", "false"]).optional(),

@@ -24,7 +24,17 @@ import { usersRouter } from "./modules/users/users.routes.js";
 export const app = express();
 
 app.set("trust proxy", env.TRUST_PROXY);
-app.use(pinoHttp({ logger, autoLogging: env.NODE_ENV !== "test" }));
+app.use(
+  pinoHttp({
+    logger,
+    autoLogging: env.NODE_ENV !== "test",
+    // Log the essentials only: no headers, bodies or query strings (they can carry personal data).
+    serializers: {
+      req: (req) => ({ id: req.id, method: req.method, url: String(req.url).split("?")[0] }),
+      res: (res) => ({ statusCode: res.statusCode }),
+    },
+  }),
+);
 // Swagger UI needs inline scripts, so it gets its own relaxed helmet config. Everything else stays strict.
 if ((env.ENABLE_DOCS ?? (env.NODE_ENV === "production" ? "false" : "true")) === "true") {
   app.get("/api/v1/openapi.json", helmet(), (_req, res) => void res.json(openApiSpec));
