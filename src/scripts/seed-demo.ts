@@ -15,6 +15,12 @@ export const DEMO_PASSWORDS = { admin: "Admin@12345", instructor: "Instructor@12
 const day = 24 * 60 * 60 * 1000;
 const inDays = (n: number) => new Date(Date.now() + n * day);
 
+/** Wiping every collection must never happen by accident, and never on a production database. */
+export function assertResetAllowed(nodeEnv: string | undefined, args: string[]) {
+  if (nodeEnv === "production") throw new Error("Refusing to reset: NODE_ENV is production.");
+  if (!args.includes("--yes")) throw new Error("This deletes ALL data in the configured database. Add --yes to confirm: npm run seed:demo -- --reset --yes");
+}
+
 async function reset() {
   for (const c of await mongoose.connection.db!.collections()) await c.deleteMany({});
   console.log("Cleared all collections");
@@ -150,9 +156,13 @@ async function makeQuiz(courseId: Types.ObjectId, title: string, questions: Ques
 
 async function main() {
   await connectDb();
-  if (process.argv.includes("--reset")) await reset();
+  if (process.argv.includes("--reset")) {
+    assertResetAllowed(process.env.NODE_ENV, process.argv);
+    console.log(`Resetting database "${mongoose.connection.name}"...`);
+    await reset();
+  }
   if (await User.exists({ email: "admin@learnsphere.test" })) {
-    console.log("Demo data already exists. Run with --reset to rebuild it (this clears ALL collections).");
+    console.log("Demo data already exists. To rebuild it: npm run seed:demo -- --reset --yes (this clears ALL collections).");
     return mongoose.disconnect();
   }
 
@@ -444,8 +454,9 @@ async function main() {
   await mongoose.disconnect();
 }
 
-main().catch(async (e) => {
-  console.error(e);
-  await mongoose.disconnect();
-  process.exit(1);
-});
+if (process.argv[1]?.includes("seed-demo"))
+  main().catch(async (e) => {
+    console.error(e);
+    await mongoose.disconnect();
+    process.exit(1);
+  });
