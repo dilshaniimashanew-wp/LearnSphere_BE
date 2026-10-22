@@ -21,7 +21,7 @@ const courseBody = z
     level: z.enum(LEVELS),
     objectives: z.array(z.string().trim().min(1)).max(20).default([]),
     prerequisites: z.array(z.string().trim().min(1)).max(20).default([]),
-    thumbnailUrl: z.string().url().optional(),
+    thumbnailUrl: z.string().url().startsWith("https://", "Use an https image URL").nullable().optional(),
   })
   .strict();
 
