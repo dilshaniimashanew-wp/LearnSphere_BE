@@ -10,6 +10,7 @@ process.env.MONGODB_URI = mongod.getUri("learnsphere_test");
 process.env.SESSION_SECRET = "test-secret-".padEnd(48, "x");
 process.env.APP_ORIGIN = "http://localhost:3000";
 process.env.AUTH_RATE_LIMIT = "10000";
+process.env.API_RATE_LIMIT = "100000";
 delete process.env.DNS_SERVERS;
 
 afterAll(async () => {

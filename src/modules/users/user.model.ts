@@ -12,6 +12,9 @@ const userSchema = new Schema(
     status: { type: String, enum: ["active", "suspended"], default: "active", required: true },
     avatarUrl: String,
     emailVerifiedAt: Date,
+    // Brute-force protection: too many wrong passwords lock the account for a while.
+    failedLoginCount: { type: Number, default: 0 },
+    lockedUntil: Date,
   },
   { timestamps: true },
 );

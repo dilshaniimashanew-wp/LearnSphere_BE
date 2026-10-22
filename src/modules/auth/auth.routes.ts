@@ -1,36 +1,37 @@
 import { Router } from "express";
 import { env } from "../../config/env.js";
-import rateLimit from "express-rate-limit";
-import { SESSION_COOKIE, authenticate, sessionCookieOptions, signSession } from "../../middleware/auth.js";
+import { authenticate } from "../../middleware/auth.js";
+import { createLimiter } from "../../middleware/security.js";
 import { validateBody } from "../../middleware/validate.js";
 import { toPublicUser } from "../users/user.model.js";
 import { forgotPasswordSchema, loginSchema, registerSchema } from "./auth.schemas.js";
 import { authenticateUser, registerUser } from "./auth.service.js";
+import { endSession, refreshSession, startSession } from "./session.service.js";
 
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: env.AUTH_RATE_LIMIT,
-  standardHeaders: "draft-7",
-  legacyHeaders: false,
-  message: { error: { code: "RATE_LIMITED", message: "Too many attempts. Try again later.", details: [] } },
-});
+const limiter = createLimiter(env.AUTH_RATE_LIMIT);
 
 export const authRouter = Router();
 
 authRouter.post("/register", limiter, validateBody(registerSchema), async (req, res) => {
   const user = await registerUser(req.body);
-  res.cookie(SESSION_COOKIE, signSession(user.id), sessionCookieOptions);
+  await startSession(req, res, user);
   res.status(201).json({ data: toPublicUser(user), message: "Account created" });
 });
 
 authRouter.post("/login", limiter, validateBody(loginSchema), async (req, res) => {
   const user = await authenticateUser(req.body.email, req.body.password);
-  res.cookie(SESSION_COOKIE, signSession(user.id), sessionCookieOptions);
+  await startSession(req, res, user);
   res.json({ data: toPublicUser(user), message: "Signed in" });
 });
 
-authRouter.post("/logout", (_req, res) => {
-  res.clearCookie(SESSION_COOKIE, { ...sessionCookieOptions, maxAge: undefined });
+// Called by the web app when the short-lived access token has expired.
+authRouter.post("/refresh", limiter, async (req, res) => {
+  const user = await refreshSession(req, res);
+  res.json({ data: toPublicUser(user), message: "Session refreshed" });
+});
+
+authRouter.post("/logout", async (req, res) => {
+  await endSession(req, res);
   res.json({ message: "Signed out" });
 });
 

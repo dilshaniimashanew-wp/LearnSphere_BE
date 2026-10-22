@@ -9,6 +9,7 @@ import { presentCourse, presentCourses } from "../courses/course.presenter.js";
 import { rejectCourseBody } from "../courses/course.schemas.js";
 import * as courseService from "../courses/course.service.js";
 import { AuditLog } from "../platform/platform.model.js";
+import { revokeAllSessions } from "../auth/session.service.js";
 import { ROLES, User, toPublicUser } from "../users/user.model.js";
 
 export const adminRouter = Router();
@@ -32,6 +33,7 @@ adminRouter.patch("/admin/users/:userId/status", validateBody(statusBody), async
   if (user.id === req.user!.id) throw forbidden("You cannot change your own status");
   user.status = req.body.status;
   await user.save();
+  if (user.status === "suspended") await revokeAllSessions(user._id);
   await audit(req.user!, `user.${req.body.status === "suspended" ? "suspend" : "reactivate"}`, "user", user.id, { email: user.email });
   res.json({ data: toPublicUser(user), message: `User ${req.body.status}` });
 });
