@@ -77,7 +77,7 @@ describe("login and session", () => {
 
   it("rejects missing, forged and malformed session cookies", async () => {
     expect((await anonymous().get(api("/auth/me"))).status).toBe(401);
-    expect((await request(app).get(api("/auth/me")).set("Cookie", "ls_session=abc.def.ghi")).status).toBe(401);
+    expect((await request(app).get(api("/auth/me")).set("Cookie", "ls_access=abc.def.ghi")).status).toBe(401);
   });
 
   it("logs out by clearing the cookie", async () => {

@@ -4,8 +4,10 @@ import { env } from "../config/env.js";
 import { User, type UserDoc, type Role } from "../modules/users/user.model.js";
 import { forbidden, unauthorized } from "../shared/errors.js";
 
-export const SESSION_COOKIE = "ls_session";
-const SESSION_TTL_SECONDS = 60 * 60 * 24; // 1 day
+export const ACCESS_COOKIE = "ls_access";
+export const REFRESH_COOKIE = "ls_refresh";
+export const ACCESS_TTL_SECONDS = 15 * 60; // short-lived: a stolen access token is useful for minutes only
+export const REFRESH_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 declare module "express-serve-static-core" {
   interface Request {
@@ -13,25 +15,28 @@ declare module "express-serve-static-core" {
   }
 }
 
-export function signSession(userId: string) {
-  return jwt.sign({ sub: userId }, env.SESSION_SECRET, { expiresIn: SESSION_TTL_SECONDS });
+const baseCookie = { httpOnly: true, sameSite: "lax", secure: env.NODE_ENV === "production" } as const;
+export const accessCookieOptions = { ...baseCookie, maxAge: ACCESS_TTL_SECONDS * 1000, path: "/" } as const;
+// The refresh cookie is only ever sent to the auth endpoints, never with ordinary API calls.
+export const refreshCookieOptions = { ...baseCookie, maxAge: REFRESH_TTL_SECONDS * 1000, path: "/api/v1/auth" } as const;
+
+export function signAccessToken(userId: string) {
+  return jwt.sign({ sub: userId, typ: "access" }, env.SESSION_SECRET, { algorithm: "HS256", expiresIn: ACCESS_TTL_SECONDS });
 }
 
-export const sessionCookieOptions = {
-  httpOnly: true,
-  sameSite: "lax",
-  secure: env.NODE_ENV === "production",
-  maxAge: SESSION_TTL_SECONDS * 1000,
-  path: "/",
-} as const;
+async function userFromRequest(token: string | undefined) {
+  if (!token) return null;
+  // The algorithm is pinned so a forged "alg: none" or asymmetric-key token is rejected.
+  const payload = jwt.verify(token, env.SESSION_SECRET, { algorithms: ["HS256"] }) as { sub: string; typ?: string };
+  if (payload.typ !== "access") return null;
+  return User.findById(payload.sub);
+}
 
-/** Requires a valid session. Loads the user fresh so suspended accounts lose access immediately. */
+/** Requires a valid access token. Loads the user fresh so suspended accounts lose access immediately. */
 export const authenticate: RequestHandler = async (req, _res, next) => {
-  const token = req.cookies?.[SESSION_COOKIE];
-  if (!token) return next(unauthorized());
+  if (!req.cookies?.[ACCESS_COOKIE]) return next(unauthorized());
   try {
-    const payload = jwt.verify(token, env.SESSION_SECRET) as { sub: string };
-    const user = await User.findById(payload.sub);
+    const user = await userFromRequest(req.cookies[ACCESS_COOKIE]);
     if (!user) return next(unauthorized());
     if (user.status !== "active") return next(forbidden("This account is suspended"));
     req.user = user;
@@ -43,23 +48,14 @@ export const authenticate: RequestHandler = async (req, _res, next) => {
 
 /** Public endpoints that behave differently for signed-in users. Invalid or missing sessions are ignored. */
 export const optionalAuth: RequestHandler = async (req, _res, next) => {
-  const token = req.cookies?.[SESSION_COOKIE];
-  if (token) {
-    try {
-      const payload = jwt.verify(token, env.SESSION_SECRET) as { sub: string };
-      const user = await User.findById(payload.sub);
-      if (user && user.status === "active") req.user = user;
-    } catch {
-      // treat as signed out
-    }
+  try {
+    const user = await userFromRequest(req.cookies?.[ACCESS_COOKIE]);
+    if (user && user.status === "active") req.user = user;
+  } catch {
+    // treat as signed out
   }
   next();
 };
-
-/** Authenticates the request and, when roles are given, requires one of them. Use per route so unmatched URLs still 404. */
-export function protect(...roles: Role[]): RequestHandler[] {
-  return roles.length ? [authenticate, requireRole(...roles)] : [authenticate];
-}
 
 export function requireRole(...roles: Role[]): RequestHandler {
   return (req, _res, next) => {
@@ -67,4 +63,9 @@ export function requireRole(...roles: Role[]): RequestHandler {
     if (!roles.includes(req.user.role)) return next(forbidden());
     next();
   };
+}
+
+/** Authenticates the request and, when roles are given, requires one of them. Use per route so unmatched URLs still 404. */
+export function protect(...roles: Role[]): RequestHandler[] {
+  return roles.length ? [authenticate, requireRole(...roles)] : [authenticate];
 }

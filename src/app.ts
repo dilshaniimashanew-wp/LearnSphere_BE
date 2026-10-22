@@ -2,9 +2,12 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
+import { pinoHttp } from "pino-http";
 import mongoose from "mongoose";
 import { env } from "./config/env.js";
 import { errorHandler, notFoundHandler } from "./middleware/error-handler.js";
+import { createLimiter, sameOriginOnly } from "./middleware/security.js";
+import { logger } from "./shared/logger.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { adminRouter } from "./modules/admin/admin.routes.js";
 import { analyticsRouter } from "./modules/analytics/analytics.routes.js";
@@ -18,12 +21,16 @@ import { usersRouter } from "./modules/users/users.routes.js";
 
 export const app = express();
 
+app.set("trust proxy", env.TRUST_PROXY);
+app.use(pinoHttp({ logger, autoLogging: env.NODE_ENV !== "test" }));
 app.use(helmet());
 app.use(cors({ origin: [env.APP_ORIGIN], credentials: true }));
 app.use(express.json({ limit: "100kb" }));
 app.use(cookieParser());
+app.use(sameOriginOnly);
 
 const api = express.Router();
+api.use(createLimiter(env.API_RATE_LIMIT));
 api.get("/health", (_req, res) => {
   res.json({ data: { status: "ok", db: mongoose.connection.readyState === 1 ? "connected" : "disconnected" } });
 });

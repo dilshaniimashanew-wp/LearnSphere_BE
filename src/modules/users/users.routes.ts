@@ -6,6 +6,7 @@ import { validateBody } from "../../middleware/validate.js";
 import { unauthorized } from "../../shared/errors.js";
 import { passwordRule } from "../auth/auth.schemas.js";
 import { hashPassword } from "../auth/auth.service.js";
+import { revokeAllSessions, startSession } from "../auth/session.service.js";
 import { User, toPublicUser } from "./user.model.js";
 
 // Avatars are small (client-resized) data URLs or https links. Large files belong in object storage.
@@ -38,5 +39,8 @@ usersRouter.patch("/me/password", validateBody(changePasswordSchema), async (req
   }
   user.passwordHash = await hashPassword(req.body.newPassword);
   await user.save();
+  // A password change signs the account out everywhere, then keeps this device signed in.
+  await revokeAllSessions(user._id);
+  await startSession(req, res, user);
   res.json({ message: "Password updated" });
 });
