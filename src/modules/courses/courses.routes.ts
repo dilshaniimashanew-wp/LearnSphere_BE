@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { httpUrl, httpsUrl } from "../../shared/schemas.js";
 import { isValidObjectId } from "mongoose";
 import { z } from "zod";
 import { authenticate, optionalAuth, requireRole } from "../../middleware/auth.js";
@@ -21,7 +22,7 @@ const courseBody = z
     level: z.enum(LEVELS),
     objectives: z.array(z.string().trim().min(1)).max(20).default([]),
     prerequisites: z.array(z.string().trim().min(1)).max(20).default([]),
-    thumbnailUrl: z.string().url().startsWith("https://", "Use an https image URL").nullable().optional(),
+    thumbnailUrl: httpsUrl.nullable().optional(),
   })
   .strict();
 
@@ -31,7 +32,7 @@ const lessonBody = z
     title: z.string().trim().min(2).max(120),
     type: z.enum(["text", "video"]).default("text"),
     content: z.string().default(""),
-    videoUrl: z.string().url().optional(),
+    videoUrl: httpUrl.optional(),
     order: z.number().int().min(0).optional(),
     isRequired: z.boolean().default(true),
     estimatedMinutes: z.number().int().min(1).max(600).default(10),

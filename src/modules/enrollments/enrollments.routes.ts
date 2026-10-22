@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { authenticate, requireRole } from "../../middleware/auth.js";
+import { protect } from "../../middleware/auth.js";
 import { validateBody } from "../../middleware/validate.js";
 import { badRequest, conflict, forbidden, notFound } from "../../shared/errors.js";
 import { assertEnrolledStudent, assertOwnerOrAdmin, loadCourse, notify, oid } from "../../shared/helpers.js";
@@ -11,9 +11,8 @@ import { Enrollment, LessonProgress } from "./enrollment.model.js";
 import { courseProgress, evaluateCompletion } from "./progress.service.js";
 
 export const enrollmentsRouter = Router();
-enrollmentsRouter.use(authenticate);
 
-enrollmentsRouter.post("/courses/:courseId/enroll", requireRole("student"), async (req, res) => {
+enrollmentsRouter.post("/courses/:courseId/enroll", ...protect("student"), async (req, res) => {
   const course = await loadCourse(req.params.courseId);
   if (course.status !== "published") throw forbidden("This course is not open for enrollment");
   try {
@@ -27,7 +26,7 @@ enrollmentsRouter.post("/courses/:courseId/enroll", requireRole("student"), asyn
   res.status(201).json({ message: "Enrolled" });
 });
 
-enrollmentsRouter.get("/enrollments/me", requireRole("student"), async (req, res) => {
+enrollmentsRouter.get("/enrollments/me", ...protect("student"), async (req, res) => {
   const enrollments = await Enrollment.find({ studentId: req.user!._id }).sort({ enrolledAt: -1 });
   const items = await Promise.all(
     enrollments.map(async (e) => {
@@ -50,7 +49,7 @@ enrollmentsRouter.get("/enrollments/me", requireRole("student"), async (req, res
   res.json({ data: items.filter(Boolean) });
 });
 
-enrollmentsRouter.get("/courses/:courseId/students", requireRole("instructor", "admin"), async (req, res) => {
+enrollmentsRouter.get("/courses/:courseId/students", ...protect("instructor", "admin"), async (req, res) => {
   const course = await loadCourse(req.params.courseId);
   assertOwnerOrAdmin(course, req.user!);
   const enrollments = await Enrollment.find({ courseId: course._id }).sort({ enrolledAt: -1 }).lean();
@@ -69,7 +68,7 @@ enrollmentsRouter.get("/courses/:courseId/students", requireRole("instructor", "
   res.json({ data: items });
 });
 
-enrollmentsRouter.get("/courses/:courseId/progress", requireRole("student"), async (req, res) => {
+enrollmentsRouter.get("/courses/:courseId/progress", ...protect("student"), async (req, res) => {
   const course = await loadCourse(req.params.courseId);
   await assertEnrolledStudent(course, req.user!);
   res.json({ data: await courseProgress(req.user!._id, course._id) });
@@ -77,7 +76,7 @@ enrollmentsRouter.get("/courses/:courseId/progress", requireRole("student"), asy
 
 const progressBody = z.object({ completed: z.boolean() }).strict();
 
-enrollmentsRouter.post("/lessons/:lessonId/progress", requireRole("student"), validateBody(progressBody), async (req, res) => {
+enrollmentsRouter.post("/lessons/:lessonId/progress", ...protect("student"), validateBody(progressBody), async (req, res) => {
   const lesson = await Lesson.findById(oid(req.params.lessonId));
   if (!lesson) throw notFound("Lesson not found");
   const course = await loadCourse(lesson.courseId);

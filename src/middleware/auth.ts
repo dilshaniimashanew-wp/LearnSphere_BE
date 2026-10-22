@@ -56,6 +56,11 @@ export const optionalAuth: RequestHandler = async (req, _res, next) => {
   next();
 };
 
+/** Authenticates the request and, when roles are given, requires one of them. Use per route so unmatched URLs still 404. */
+export function protect(...roles: Role[]): RequestHandler[] {
+  return roles.length ? [authenticate, requireRole(...roles)] : [authenticate];
+}
+
 export function requireRole(...roles: Role[]): RequestHandler {
   return (req, _res, next) => {
     if (!req.user) return next(unauthorized());
