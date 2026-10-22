@@ -7,6 +7,8 @@ const schema = z.object({
   MONGODB_URI: z.string().min(1),
   SESSION_SECRET: z.string().min(32, "SESSION_SECRET must be at least 32 characters"),
   APP_ORIGIN: z.string().url(),
+  // Max auth requests (login/register/forgot-password) per IP per 15 minutes
+  AUTH_RATE_LIMIT: z.coerce.number().int().positive().default(30),
   // Optional comma-separated DNS servers, for networks whose DNS cannot resolve mongodb+srv records
   DNS_SERVERS: z.string().optional(),
   ADMIN_EMAIL: z.string().email().optional(),
