@@ -5,7 +5,7 @@ import { hashPassword } from "../modules/auth/auth.service.js";
 import { Category, Course, CourseModule, Lesson } from "../modules/courses/course.model.js";
 import { Enrollment, LessonProgress } from "../modules/enrollments/enrollment.model.js";
 import { evaluateCompletion } from "../modules/enrollments/progress.service.js";
-import { AuditLog, Notification } from "../modules/platform/platform.model.js";
+import { Announcement, AuditLog, Notification, Review } from "../modules/platform/platform.model.js";
 import { User } from "../modules/users/user.model.js";
 import { slugify, uniqueSlug } from "../shared/helpers.js";
 
@@ -26,6 +26,55 @@ async function makeUser(name: string, email: string, role: "admin" | "instructor
 
 type LessonSeed = [title: string, minutes: number, content: string, video?: string];
 type QuestionSeed = { type: "multiple_choice" | "true_false"; prompt: string; options?: string[]; correct: number };
+
+
+// Dummy question banks so the quizzes feel real.
+const mc = (prompt: string, options: string[], correct: number): QuestionSeed => ({ type: "multiple_choice", prompt, options, correct });
+const tf = (prompt: string, isTrue: boolean): QuestionSeed => ({ type: "true_false", prompt, correct: isTrue ? 0 : 1 });
+
+const routingQuestions: QuestionSeed[] = [
+  mc("Which folder holds routes in the App Router?", ["pages", "app", "routes", "src/api"], 1),
+  tf("Layouts can be shared by multiple pages.", true),
+  mc("Which file defines a loading UI for a route?", ["loading.tsx", "spinner.tsx", "wait.tsx", "page.css"], 0),
+  tf("Server components can use useState.", false),
+  mc("Which file defines a not-found UI?", ["error.tsx", "missing.tsx", "not-found.tsx", "404.js"], 2),
+  mc("How do you create a dynamic route segment?", ["[slug]", "{slug}", "(slug)", "<slug>"], 0),
+  tf("Route groups written in parentheses change the URL path.", false),
+  mc("Which component enables client-side navigation between routes?", ["a", "Link", "Route", "Anchor"], 1),
+  mc("Which directive marks a client component?", ['"use client"', '"use browser"', '"client only"', '"use state"'], 0),
+  tf("A page.tsx file is required for a route to be publicly accessible.", true),
+];
+
+const formsQuestions: QuestionSeed[] = [
+  mc("Which library validates data with TypeScript type inference?", ["Zod", "Lodash", "Axios", "Moment"], 0),
+  tf("Client-side validation alone is enough to keep an API secure.", false),
+  mc("Which React Hook Form function connects an input to the form?", ["register", "connect", "bind", "attach"], 0),
+  mc("What should every form input have for accessibility?", ["A label", "A tooltip", "A border", "A placeholder only"], 0),
+  tf("Validation errors should be announced to screen readers.", true),
+  mc("Which HTTP status best fits invalid input?", ["400", "200", "301", "500"], 0),
+];
+
+const expressQuestions: QuestionSeed[] = [
+  mc("What does Express middleware receive?", ["req, res, next", "only req", "only res", "nothing"], 0),
+  tf("MongoDB enforces foreign keys.", false),
+  mc("Which status code means the user is not authenticated?", ["401", "403", "404", "201"], 0),
+  mc("What is a safe way to store passwords?", ["Argon2id hash", "Plain text", "Base64", "MD5 only"], 0),
+  tf("Express 5 forwards errors from rejected async handlers to the error handler.", true),
+  mc("What does a unique index in Mongoose prevent?", ["Duplicate values", "Slow queries", "Large files", "CORS errors"], 0),
+  tf("Cookies marked HttpOnly can be read by JavaScript.", false),
+  mc("Which HTTP method is conventionally used for a partial update?", ["PATCH", "GET", "TRACE", "HEAD"], 0),
+];
+
+const pandasQuestions: QuestionSeed[] = [
+  mc("Which structure is a 2D table in pandas?", ["Series", "DataFrame", "Array", "Index"], 1),
+  tf("pandas can read CSV files.", true),
+  mc("Which function reads a CSV file?", ["pd.read_csv", "pd.open_csv", "pd.load", "pd.csv"], 0),
+  mc("Which method shows the first rows of a DataFrame?", ["head()", "top()", "first_rows()", "peek()"], 0),
+  tf("dropna() removes rows with missing values.", true),
+  mc("Which expression counts missing values per column?", ["df.isna().sum()", "df.count_missing()", "df.nulls()", "df.empty"], 0),
+  tf("A pandas Series is two dimensional.", false),
+  mc("Which method groups rows so you can aggregate them?", ["groupby", "mixby", "sortby", "joinby"], 0),
+];
 
 async function makeCourse(opts: {
   instructorId: Types.ObjectId;
@@ -125,12 +174,8 @@ async function main() {
       },
     ],
   });
-  const webQuiz = await makeQuiz(web.course._id, "Routing basics quiz", [
-    { type: "multiple_choice", prompt: "Which folder holds routes in the App Router?", options: ["pages", "app", "routes", "src/api"], correct: 1 },
-    { type: "true_false", prompt: "Layouts can be shared by multiple pages.", correct: 0 },
-    { type: "multiple_choice", prompt: "Which file defines a loading UI for a route?", options: ["loading.tsx", "spinner.tsx", "wait.tsx", "page.css"], correct: 0 },
-    { type: "true_false", prompt: "Server components can use useState.", correct: 1 },
-  ]);
+  const webQuiz = await makeQuiz(web.course._id, "Routing basics quiz", routingQuestions);
+  await makeQuiz(web.course._id, "Forms and validation quiz", formsQuestions, 70);
   const webAssignment = await Assignment.create({ courseId: web.course._id, title: "Build a validated form", instructions: "Build a registration form with React Hook Form and Zod. Share a link to your code or write a short description.", dueAt: inDays(7), maxPoints: 100, allowResubmission: true });
   await Assignment.create({ courseId: web.course._id, title: "Deploy your app", instructions: "Deploy a small Next.js app and submit the live URL.", dueAt: inDays(14), maxPoints: 50 });
 
@@ -149,10 +194,7 @@ async function main() {
       { title: "MongoDB", lessons: [["Schema design", 25, "Embedding versus referencing and indexes."]] },
     ],
   });
-  await makeQuiz(api.course._id, "Express basics quiz", [
-    { type: "multiple_choice", prompt: "What does middleware receive?", options: ["req, res, next", "only req", "only res", "nothing"], correct: 0 },
-    { type: "true_false", prompt: "MongoDB enforces foreign keys.", correct: 1 },
-  ]);
+  await makeQuiz(api.course._id, "Express basics quiz", expressQuestions);
   await Assignment.create({ courseId: api.course._id, title: "Design a schema", instructions: "Design Mongoose schemas for a blog and explain your index choices.", dueAt: inDays(10), maxPoints: 100 });
 
   const py = await makeCourse({
@@ -166,10 +208,7 @@ async function main() {
     objectives: ["Use pandas", "Visualise data", "Tell a story with data"],
     modules: [{ title: "Foundations", lessons: [["Intro to pandas", 20, "DataFrames, Series and reading CSV files."], ["Cleaning data", 25, "Missing values, duplicates and type conversion."]] }],
   });
-  const pyQuiz = await makeQuiz(py.course._id, "Pandas basics quiz", [
-    { type: "multiple_choice", prompt: "Which structure is a 2D table in pandas?", options: ["Series", "DataFrame", "Array", "Index"], correct: 1 },
-    { type: "true_false", prompt: "pandas can read CSV files.", correct: 0 },
-  ]);
+  const pyQuiz = await makeQuiz(py.course._id, "Pandas basics quiz", pandasQuestions);
 
   // Awaiting admin approval / still drafting
   await makeCourse({
@@ -213,14 +252,14 @@ async function main() {
 
   await Enrollment.create({ studentId: nimali._id, courseId: py.course._id });
   for (const l of py.lessons) await LessonProgress.create({ studentId: nimali._id, courseId: py.course._id, lessonId: l._id });
-  await QuizAttempt.create({ quizId: pyQuiz._id, courseId: py.course._id, studentId: nimali._id, attemptNumber: 1, status: "submitted", submittedAt: new Date(), score: 2, maxScore: 2, passed: true });
+  await QuizAttempt.create({ quizId: pyQuiz._id, courseId: py.course._id, studentId: nimali._id, attemptNumber: 1, status: "submitted", submittedAt: new Date(), score: 8, maxScore: 8, passed: true });
   await evaluateCompletion(nimali._id, py.course._id);
 
   // Chamod: has passed the web quiz and submitted an assignment waiting to be graded.
   await Enrollment.create({ studentId: chamod._id, courseId: web.course._id });
   await Enrollment.create({ studentId: chamod._id, courseId: api.course._id });
   await LessonProgress.create({ studentId: chamod._id, courseId: web.course._id, lessonId: web.lessons[0]._id });
-  await QuizAttempt.create({ quizId: webQuiz._id, courseId: web.course._id, studentId: chamod._id, attemptNumber: 1, status: "submitted", submittedAt: new Date(), score: 3, maxScore: 4, passed: true });
+  await QuizAttempt.create({ quizId: webQuiz._id, courseId: web.course._id, studentId: chamod._id, attemptNumber: 1, status: "submitted", submittedAt: new Date(), score: 8, maxScore: 10, passed: true });
   await Submission.create({ assignmentId: webAssignment._id, courseId: web.course._id, studentId: chamod._id, textResponse: "Form built with React Hook Form + Zod: https://github.com/example/form-demo", submittedAt: new Date() });
 
   // Tharushi: already graded.
@@ -234,6 +273,20 @@ async function main() {
     status: "graded",
     grade: { pointsAwarded: 86, feedback: "Great validation and clear error messages. Add keyboard focus styles next time.", gradedBy: amara._id, gradedAt: new Date() },
   });
+
+  // ---- Announcements & reviews ----
+  await Announcement.insertMany([
+    { courseId: web.course._id, authorId: amara._id, title: "Welcome to the course", body: "Welcome everyone! Start with the Getting started module, then try the Routing basics quiz. Ask questions any time." },
+    { courseId: web.course._id, authorId: amara._id, title: "Assignment tip", body: "For the validated form assignment, share a repository link or describe your approach. Resubmission is allowed until the deadline." },
+    { courseId: api.course._id, authorId: kasun._id, title: "Schema design office hour", body: "I will review schema designs live on Friday. Bring your index questions." },
+    { courseId: py.course._id, authorId: kasun._id, title: "Dataset for practice", body: "Use any public CSV dataset for the cleaning exercise. Kaggle has many small ones." },
+  ]);
+  await Review.insertMany([
+    { courseId: py.course._id, studentId: nimali._id, rating: 5, comment: "Clear explanations and practical examples. The cleaning lesson was my favourite." },
+    { courseId: web.course._id, studentId: nimali._id, rating: 4, comment: "Great pace. I would love a longer section on deployment." },
+    { courseId: web.course._id, studentId: chamod._id, rating: 5, comment: "The quizzes made the concepts stick." },
+    { courseId: web.course._id, studentId: tharushi._id, rating: 4, comment: "Helpful feedback on my assignment." },
+  ]);
 
   // ---- Notifications & audit log ----
   await Notification.insertMany([
