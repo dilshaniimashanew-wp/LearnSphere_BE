@@ -9,6 +9,8 @@ import { authenticateUser, registerUser } from "./auth.service.js";
 import { endSession, refreshSession, startSession } from "./session.service.js";
 
 const limiter = createLimiter(env.AUTH_RATE_LIMIT);
+// Refreshing happens on every page load of a signed-out visitor, so it gets its own, looser budget.
+const refreshLimiter = createLimiter(env.AUTH_RATE_LIMIT * 10);
 
 export const authRouter = Router();
 
@@ -25,7 +27,7 @@ authRouter.post("/login", limiter, validateBody(loginSchema), async (req, res) =
 });
 
 // Called by the web app when the short-lived access token has expired.
-authRouter.post("/refresh", limiter, async (req, res) => {
+authRouter.post("/refresh", refreshLimiter, async (req, res) => {
   const user = await refreshSession(req, res);
   res.json({ data: toPublicUser(user), message: "Session refreshed" });
 });
